@@ -1,7 +1,7 @@
 # transformer_latent_diffusion
 Text to Image Latent Diffusion using a Transformer core.
 
-Codebase to train a CLIP conditioned Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts.
+Codebase to train a Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts. The model generates 256*256 resolution images.
 
 This is part II of aprevious project I did where I trained a pixel level diffusion model in keras. Here I train a latent diffusion model in pytorch. 
 
@@ -14,10 +14,23 @@ The main goal of this project is to showcase a model in Pytorch that is:
 
 ## Speed:
 
+I try to speed up training and inference as much as possible by:
+- using mixed precision for training + sdpa
+- precompute all latent and text embeddings
+- using float16 precision for inference
+- using sdpa for the attention natively + torch.compile
+- use a deterministic denoising process (DDIM) for fewer steps
+- TODO: would distillation or something like LCM work here?
+
+The time to generate 16 images on a T4: A100:
+
+
+### Code:
+
 
 ## Data Processing:
 
-In ##file I have some helper functions to process images and captions. The flow is as follows:
+In (data.py)[https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py] I have some helper functions to process images and captions. The flow is as follows:
 - use `img2dataset` to download images from a dataframe containing urls and captions
 - use `clip` to encode the pormpts and the `vae`  to encode images to latents on a web2dataset data generator.
 - save the latents and text embedding for future training.
@@ -26,7 +39,9 @@ There are two advantages to this approach. One is that the vae encoding is somew
 
 ## Architecture:
 
-The denoiser model is a transformer based model insipired by [DeIT] and [Pixart Alpha] albeit with quite a few modifications and some simplifications. This is different than most diffusion models in that most other models used a CNN based UNET as the denoising backbone. I decided to use a transformer for a few reasons. One was I just wanted to experiment and learn how to build and train transformers. Secondly transformers are fast both to train and to do inference on and they will benefit most from future advances (both in hardware and in software) in performance. 
+The code for the architecture is (here)[https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/denoiser.py]
+
+The denoiser model is a transformer based model insipired by [DeIT] and [Pixart Alpha] albeit with quite a few modifications and simplifications. Using a transformer as the denoiser is different from most diffusion models in that most other models used a CNN based U-NET as the denoising backbone. I decided to use a transformer for a few reasons. One was I just wanted to experiment and learn how to build and train transformers. Secondly transformers are fast both to train and to do inference on and they will benefit most from future advances (both in hardware and in software) in performance. 
 
 Transformers are not natively built for spatial data and at first I found a lot of the outputs to be very "patchy". To remediy that I added a depth-wise convolution in the FFN layer of the transformer (this was introduced in the [Local ViT](https://arxiv.org/abs/2104.05707) paper. This allows the model to mix pixels that are close to each other with very little added compute cost.
 
