@@ -1,6 +1,9 @@
 # transformer_latent_diffusion
 Text to Image Latent Diffusion using a Transformer core.
 
+<img width="640" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/41730694-4b32-4c1c-8e67-951aca723962">
+
+
 Codebase to train a Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts. The model generates 256*256 resolution images.
 
 This is part II of aprevious project I did where I trained a pixel level diffusion model in keras. Here I train a latent diffusion model in pytorch. 
@@ -23,6 +26,7 @@ I try to speed up training and inference as much as possible by:
 - TODO: would distillation or something like LCM work here?
 
 The time to generate 16 images on a T4: A100:
+
 
 
 ### Code:
