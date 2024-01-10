@@ -1,4 +1,4 @@
-from transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding, MHAttention
+from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 
 import torch.nn as nn
 import torch
