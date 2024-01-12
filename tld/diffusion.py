@@ -1,5 +1,6 @@
 import torch
 from tqdm import tqdm
+
 @torch.no_grad()
 def diffusion(model,
               vae,
@@ -11,16 +12,24 @@ def diffusion(model,
               class_guidance=3,
               seed=10,
               scale_factor=8,
-              dyn_thresh=False,
               img_size=16,
-              perc_thresh=0.99
+              sharp_f = 0.1,
+              bright_f = 0.1,
+              exponent = 1,
+              seeds = None
               ):
 
-    noise_levels = 1 - torch.pow(torch.arange(0.0001, 0.99, 1 / n_iter), 1 / 3)
+    noise_levels = 1 - torch.pow(torch.arange(0.0001, 0.99, 1 / n_iter), exponent)
+    #noise_levels  = 1 - torch.arange(0, 1, 1 / n_iter)
     noise_levels = noise_levels.tolist()
 
-    torch.manual_seed(seed)
-    seeds = torch.randn(num_imgs,4,img_size,img_size).to(device)
+    if seeds is None:
+        torch.manual_seed(seed)
+        seeds = torch.randn(num_imgs,4,img_size,img_size)
+        seeds = seeds.to(device)
+    else:
+        seeds.to(device)
+
     new_img = seeds
 
     empty_labels = torch.zeros_like(labels)
@@ -48,15 +57,12 @@ def diffusion(model,
         x0_pred = class_guidance * x0_pred_label + (1 - class_guidance) * x0_pred_no_label
 
         # new image at next_noise level is a weighted average of old image and predicted x0:
-
         new_img = ((curr_noise - next_noise) * x0_pred + next_noise * new_img) / curr_noise
-        #new_img = (np.sqrt(1 - next_noise**2)) * x0_pred + next_noise * (new_img - np.sqrt(1 - curr_noise**2)* x0_pred)/ curr_noise
 
-        if dyn_thresh:
-            s = x0_pred.abs().float().quantile(perc_thresh)
-            x0_pred = x0_pred.clip(-s, s)/(s/2) #rescale to -2,2
+    #TODO: predict with model one more time to get x0
 
-    #predict with model one more time to get x0
+    x0_pred[:, 3, :, :] += sharp_f
+    x0_pred[:, 0, :, :] += bright_f
 
     x0_pred_img = vae.decode((x0_pred*scale_factor).half())[0].cpu()
 

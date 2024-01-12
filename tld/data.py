@@ -20,13 +20,13 @@ from diffusers import AutoencoderKL
 
 
 @torch.no_grad()
-def encode_text(label):
+def encode_text(label, model):
     text_tokens = clip.tokenize(label, truncate=True).cuda()
     text_encoding = model.encode_text(text_tokens)
     return text_encoding.cpu()
 
 @torch.no_grad()
-def encode_image(img):
+def encode_image(img, vae):
     x = img.to('cuda').to(torch.float16)
 
     x = x*2 - 1 #to make it between -1 and 1.
@@ -34,7 +34,7 @@ def encode_image(img):
     return encoded.cpu()
 
 @torch.no_grad()
-def decode_latents(out_latents):
+def decode_latents(out_latents, vae):
     #expected to be in the unscaled latent space 
     out = vae.decode(out_latents.cuda())[0].cpu()
 
