@@ -1,7 +1,7 @@
 # transformer_latent_diffusion
 Text to Image Latent Diffusion using a Transformer core.
 
-<img width="640" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/41730694-4b32-4c1c-8e67-951aca723962">
+<img width="640" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/4bbb9a17-5dd5-416f-8271-3c8d157fc4bd">
 
 
 Codebase to train a Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts. The model generates 256*256 resolution images.
