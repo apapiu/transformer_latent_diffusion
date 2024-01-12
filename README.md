@@ -1,6 +1,8 @@
 # transformer_latent_diffusion
 Text to Image Latent Diffusion using a Transformer core.
 
+Try with own inputs in Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
+
 <img width="640" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/4bbb9a17-5dd5-416f-8271-3c8d157fc4bd">
 
 
