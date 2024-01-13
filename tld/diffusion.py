@@ -11,11 +11,11 @@ def diffusion(model,
               num_imgs=16,
               class_guidance=3,
               seed=10, #for reproducibility
-              scale_factor=8, #latent scaling - should be ~ std of latent space
+              scale_factor=8, #latent scaling before decoding - should be ~ std of latent space
               img_size=32, #size of latent
               sharp_f = 0.1,
               bright_f = 0.1,
-              exponent = 1,
+              exponent = 1, #this control the curve of the noise trajectory
               seeds = None #can input own random latents of size (n_imgs, 4, img_size, img_size)
               ):
     """function to generate images via reverese diffusion - includes decoding the latents."""
@@ -23,8 +23,9 @@ def diffusion(model,
     noise_levels = (1 - torch.pow(torch.arange(0, 1, 1 / n_iter), exponent)).tolist()
 
     if seeds is None:
-        torch.manual_seed(seed)
-        new_img = torch.randn(num_imgs,4,img_size,img_size, dtype=model_dtype, device=device)
+        generator = torch.Generator(device=device)
+        generator.manual_seed(seed)
+        new_img = torch.randn(num_imgs,4,img_size,img_size, dtype=model_dtype, device=device, generator=generator)
     else:
         new_img = seeds.to(model_dtype, device)
 
@@ -57,3 +58,9 @@ def diffusion(model,
 
     x0_pred_img = vae.decode((x0_pred*scale_factor).half())[0].cpu()
     return x0_pred_img, x0_pred
+
+torch.manual_seed(1)
+torch.randn(1)
+
+torch.randn(32)
+torch.randn(32)
