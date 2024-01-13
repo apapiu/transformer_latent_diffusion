@@ -52,7 +52,6 @@ class SelfAttention(nn.Module):
         super().__init__()
         self.qkv_linear = nn.Linear(embed_dim, 3*embed_dim, bias=False)
         self.mha = MHAttention(is_causal, dropout_level, n_heads)
-        #self.mha = nn.MultiheadAttention(embed_dim, n_heads, batch_first=True, dropout=dropout_level) - doesn't work?
 
     def forward(self, x):
         q, k, v = self.qkv_linear(x).chunk(3, dim=2)
@@ -70,7 +69,6 @@ class CrossAttention(nn.Module):
         k, v = self.kv_linear(y).chunk(2, dim=2)
         return self.mha(q,k,v)
 
-
 class MLP(nn.Module):
     def __init__(self, embed_dim, mlp_multiplier, dropout_level):
         super().__init__()
@@ -86,8 +84,10 @@ class MLP(nn.Module):
 
 class MLPSepConv(nn.Module):
     def __init__(self, embed_dim, mlp_multiplier, dropout_level):
+        """see: https://github.com/ofsoundof/LocalViT"""
         super().__init__()
         self.mlp = nn.Sequential(
+            #this Conv with kernel size 1 is equivalent to the Linear layer in a "regular" transformer MLP
             nn.Conv2d(embed_dim, mlp_multiplier*embed_dim, kernel_size=1, padding='same'),
             nn.Conv2d(mlp_multiplier*embed_dim, mlp_multiplier*embed_dim, kernel_size=3,
                       padding='same', groups=mlp_multiplier*embed_dim), #<- depthwise conv
@@ -103,20 +103,6 @@ class MLPSepConv(nn.Module):
         x = rearrange(x, 'bs d h w -> bs (h w) d')
         return x
 
-
-class EncoderBlock(nn.Module):
-    def __init__(self, embed_dim, is_causal, mlp_multiplier, dropout_level, mlp_class=MLP):
-        super().__init__()
-        self.self_attention = SelfAttention(embed_dim, is_causal, dropout_level, n_heads=embed_dim//64)
-        self.mlp = mlp_class(embed_dim, mlp_multiplier, dropout_level)
-        self.norm1 = nn.LayerNorm(embed_dim)
-        self.norm2 = nn.LayerNorm(embed_dim)
-
-    def forward(self, x):
-        x = self.self_attention(self.norm1(x)) + x
-        x = self.mlp(self.norm2(x)) + x
-        return x
-
 class DecoderBlock(nn.Module):
     def __init__(self, embed_dim, is_causal, mlp_multiplier, dropout_level, mlp_class=MLP):
         super().__init__()
@@ -128,6 +114,7 @@ class DecoderBlock(nn.Module):
         self.norm3 = nn.LayerNorm(embed_dim)
 
     def forward(self, x, y):
+
         x = self.norm1(self.self_attention(x) + x)
         x = self.norm2(self.cross_attention(x, y) + x)
         x = self.norm3(self.mlp(x) + x)
