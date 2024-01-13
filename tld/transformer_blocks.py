@@ -4,23 +4,18 @@ import numpy as np
 from einops import rearrange
 
 class SinusoidalEmbedding(nn.Module):
-    def __init__(self, embedding_min_frequency=1.0, embedding_max_frequency=1000.0, embedding_dims=32):
+    def __init__(self, emb_min_freq=1.0, emb_max_freq=1000.0, embedding_dims=32):
         super(SinusoidalEmbedding, self).__init__()
 
         frequencies = torch.exp(
-            torch.linspace(
-                torch.log(torch.tensor(embedding_min_frequency)),
-                torch.log(torch.tensor(embedding_max_frequency)),
-                embedding_dims // 2
-            ))
+            torch.linspace(np.log(emb_min_freq), np.log(emb_max_freq),
+                embedding_dims // 2))
 
         self.register_buffer('angular_speeds', 2.0 * torch.pi * frequencies)
 
     def forward(self, x):
-        angular_speeds = self.angular_speeds
-
-        embeddings = torch.cat([torch.sin(angular_speeds * x),
-                                torch.cos(angular_speeds * x)], dim=-1)
+        embeddings = torch.cat([torch.sin(self.angular_speeds * x),
+                                torch.cos(self.angular_speeds * x)], dim=-1)
         return embeddings
 
 class MHAttention(nn.Module):
@@ -114,7 +109,6 @@ class DecoderBlock(nn.Module):
         self.norm3 = nn.LayerNorm(embed_dim)
 
     def forward(self, x, y):
-
         x = self.norm1(self.self_attention(x) + x)
         x = self.norm2(self.cross_attention(x, y) + x)
         x = self.norm3(self.mlp(x) + x)
