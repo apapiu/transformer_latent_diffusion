@@ -1,9 +1,10 @@
-from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
+"""transformer based denoiser"""
 
-import torch.nn as nn
 import torch
+from torch import nn
 from einops.layers.torch import Rearrange
-from tqdm import tqdm
+
+from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 
 
 class DenoiserTransBlock(nn.Module):
@@ -38,10 +39,12 @@ class DenoiserTransBlock(nn.Module):
         self.register_buffer('precomputed_pos_enc', torch.arange(0, seq_len).long())
 
         self.decoder_blocks = nn.ModuleList([DecoderBlock(embed_dim=self.embed_dim,
-                                                          mlp_multiplier=self.mlp_multiplier,
-                                                          is_causal=False,
-                                                          dropout_level=self.dropout,
-                                                          mlp_class=MLPSepConv)
+                                            mlp_multiplier=self.mlp_multiplier,
+                                            #note that this is a non-causal block since we are 
+                                            #denoising the entire image no need for masking
+                                            is_causal=False,
+                                            dropout_level=self.dropout,
+                                            mlp_class=MLPSepConv)
                                               for _ in range(self.n_layers)])
 
         self.out_proj = nn.Sequential(nn.Linear(self.embed_dim, patch_dim),
@@ -63,7 +66,6 @@ class Denoiser(nn.Module):
                  image_size, noise_embed_dims, patch_size, embed_dim, dropout, n_layers,
                  text_emb_size=768):
         super().__init__()
-
 
         self.image_size = image_size
         self.noise_embed_dims = noise_embed_dims
