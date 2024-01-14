@@ -1,39 +1,99 @@
-from denoiser import Denoiser
-from diffusion import diffusion
+#!/usr/bin/env python3
+import os 
+import sys
+import copy
+import numpy as np
+from tqdm import tqdm
 
-
-from accelerate import Accelerator, notebook_launcher
 import wandb
 import torchvision.utils as vutils
-from safetensors.torch import load_model, save_model
-import copy
-from torch.utils.data import DataLoader
-from tqdm import tqdm
-import numpy as np
+
+from accelerate import Accelerator
+import torchvision
+
 import torch 
+from torch import nn
+from torch.utils.data import DataLoader, TensorDataset
+
+from safetensors.torch import load_model, save_model
+from diffusers import AutoencoderKL
+
+sys.path.append('transformer_latent_diffusion')
+from tld.denoiser import Denoiser
+from tld.diffusion import DiffusionGenerator
+
+#!pip install torchview torchmetrics einops wandb diffusers datasets accelerate
+#!git clone https://github.com/apapiu/transformer_latent_diffusion.git
+
+def eval_gen(diffuser, labels):
+    class_guidance=4.5
+    seed=10
+    out, out_latent = diffuser.generate(labels=torch.repeat_interleave(labels, 8, dim=0),
+                                        num_imgs=64,
+                                        class_guidance=class_guidance,
+                                        seed=seed,
+                                        n_iter=40,
+                                        exponent=1,
+                                        sharp_f=0.1,
+                                        )
+
+    out = to_pil((vutils.make_grid((out+1)/2, nrow=8, padding=4)).float().clip(0, 1))
+    out.save(f'emb_val_cfg:{class_guidance}_seed:{seed}.png')
+
+    return out
 
 
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-#config:
-def training_loop(vae, mixed_precision, emb_val):
+def count_parameters_per_layer(model):
+    for name, param in model.named_parameters():
+        print(f"{name}: {param.numel()} parameters")
+
+to_pil = torchvision.transforms.ToPILImage()
+
+def update_ema(ema_model, model, alpha=0.999):
+    with torch.no_grad():
+        for ema_param, model_param in zip(ema_model.parameters(), model.parameters()):
+            ema_param.data.mul_(alpha).add_(model_param.data, alpha=1-alpha)
+
+
+def main():
     ## see this for more: https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
-    ## can't get some stuff to work in multi-gpu :(  diffusion does not work, EMA does not work, full dataset doesn't work
-    accelerator = Accelerator(mixed_precision=mixed_precision, log_with="wandb")
+    
+    accelerator = Accelerator(mixed_precision="fp16", log_with="wandb")
+
+    ####DATA LOADING:
+    data_path = '/content/drive/MyDrive/embs_1mil'
+    latent_train_data = np.load(os.path.join(data_path, 'image_latents256.npy'))
+    train_label_embeddings = np.load(os.path.join(data_path, 'orig_text_encodings256.npy'))
+
+    data_path = '/content/drive/MyDrive/embs_1mil'
+    emb_val = torch.tensor(np.load(os.path.join(data_path, 'val_encs.npy')), dtype=torch.float32)
+
+    train_label_embeddings = torch.tensor(train_label_embeddings, dtype=torch.float32)
+    latent_train_data = torch.tensor(latent_train_data, dtype=torch.float32)
+    dataset = TensorDataset(latent_train_data, train_label_embeddings)
+
+    vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix",
+                                    torch_dtype=torch.float16)
     
     if accelerator.is_local_main_process:
         vae = vae.to(accelerator.device)
-    
-    from_scratch = False
-    run_id = '3skree8h'
+
+    ###config: TODO: put all this in a dataclass:
+
+    from_scratch = True
+    run_id = '3ix3i6qp'
     model_name = 'curr_state_dict.pth/model.safetensors'
 
     embed_dim = 256
-    n_layers = 4
+    n_layers = 6
 
     clip_embed_size = 768
     scaling_factor = 8
-    patch_size = 1
-    image_size = img_size = 16
+    patch_size = 2
+    image_size = img_size = 32
     n_channels = 4
     dropout = 0
     mlp_multiplier = 4
@@ -51,50 +111,56 @@ def training_loop(vae, mixed_precision, emb_val):
 
     #end config:
 
+
+    ###model definition
+
     train_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
     accelerator.print("loading model")
-    
+
     model = Denoiser(image_size=image_size, noise_embed_dims=noise_embed_dims,
                  patch_size=patch_size, embed_dim=embed_dim, dropout=dropout,
                  n_layers=n_layers)
-    
+
     if not from_scratch:
         wandb.restore(model_name, run_path=f"apapiu/cifar_diffusion/runs/{run_id}",
                       replace=True)
         load_model(model, model_name)
-        
 
     accelerator.print("model loaded")
-    
+
     if accelerator.is_local_main_process:
         ema_model = copy.deepcopy(model).to(accelerator.device)
+        diffuser = DiffusionGenerator(ema_model, vae, accelerator.device, torch.float32)
 
     config = {k: v for k, v in locals().items() if k in ['embed_dim', 'n_layers', 'clip_embed_size', 'scaling_factor',
                                                          'image_size', 'noise_embed_dims', 'dropout',
-                                                         'mlp_multiplier', 'diffusion_n_iter', 'batch_size', 'lr']}
+                                                         'mlp_multiplier', 'diffusion_n_iter', 'batch_size', 'lr',
+                                                         'patch_size']}
 
-    
+
     #opt stuff:
     global_step = 0
     loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=3e-4)
-    
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
     accelerator.print("model prep")
     model, train_loader, optimizer = accelerator.prepare(
         model, train_loader, optimizer
     )
-    
+
     accelerator.init_trackers(
-    project_name="cifar_diffusion", 
+    project_name="cifar_diffusion",
     config=config
     )
 
     accelerator.print(count_parameters(model))
     accelerator.print(count_parameters_per_layer(model))
 
+    ### and train:
+
     for i in range(1, n_epoch+1):
         accelerator.print(f'epoch: {i}')
-        
+
         if accelerator.is_local_main_process:
             state_dict_path = 'curr_state_dict.pth'
             accelerator.save_model(ema_model, state_dict_path)
@@ -106,9 +172,9 @@ def training_loop(vae, mixed_precision, emb_val):
             noise_level = torch.tensor(np.random.beta(1, 2.7, len(x)), device=accelerator.device)
             signal_level = 1 - noise_level
             noise = torch.randn_like(x)
-            
+
             x_noisy = noise_level.view(-1,1,1,1)*noise + signal_level.view(-1,1,1,1)*x
-            
+
             x_noisy = x_noisy.float()
             noise_level = noise_level.float()
             label = y
@@ -116,22 +182,15 @@ def training_loop(vae, mixed_precision, emb_val):
             prob = 0.15
             mask = torch.rand(y.size(0), device=accelerator.device) < prob
             label[mask] = 0 # OR replacement_vector
-            
+
             if global_step % 500 == 0 and accelerator.is_local_main_process:
-                out, out_latent = diffusion(
-                                        model=ema_model,
-                                        vae=vae,
-                                        device=accelerator.device,
-                                        labels=torch.repeat_interleave(emb_val, 8, dim=0),
-                                        num_imgs=64, n_iter=35,
-                                        class_guidance=3,
-                                        scale_factor=scaling_factor,
-                                        dyn_thresh=True)
-                to_pil((vutils.make_grid((out.float()+1)/2, nrow=8)).clip(0, 1)).save('img.jpg')
-                wandb.log({f"step: {global_step}": wandb.Image("img.jpg")})
+                out = eval_gen(diffuser=diffuser, labels=emb_val)
+                out.save('img.jpg')
+                accelerator.log({f"step: {global_step}": wandb.Image("img.jpg")})
 
             model.train()
-    
+
+            ###train loop:
             optimizer.zero_grad()
 
             pred = model(x_noisy, noise_level.view(-1,1), label)
@@ -139,7 +198,7 @@ def training_loop(vae, mixed_precision, emb_val):
             accelerator.log({"train_loss":loss.item()}, step=global_step)
             accelerator.backward(loss)
             optimizer.step()
-            
+
             if accelerator.is_local_main_process:
                 update_ema(ema_model, model, alpha=alpha)
 
@@ -147,73 +206,8 @@ def training_loop(vae, mixed_precision, emb_val):
     accelerator.end_training()
             
 # args = (vae, "fp16")
-# notebook_launcher(training_loop, args, num_processes=1)
+# notebook_launcher(training_loop, num_processes=1)
     
+if __name__ == '__main__':
 
-##utils:
-import torchvision
-from torch import nn
-
-    
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-def count_parameters_per_layer(model):
-    for name, param in model.named_parameters():
-        print(f"{name}: {param.numel()} parameters")
-
-to_pil = torchvision.transforms.ToPILImage()
-
-from torch.optim.lr_scheduler import _LRScheduler
-
-class GradualWarmupScheduler(_LRScheduler):
-    def __init__(self, optimizer, total_warmup_steps, initial_lr, final_lr, last_epoch=-1):
-        self.total_warmup_steps = total_warmup_steps
-        self.initial_lr = initial_lr
-        self.final_lr = final_lr
-        super().__init__(optimizer, last_epoch)
-
-    def get_lr(self):
-        if self.last_epoch < self.total_warmup_steps:
-            # Calculate the learning rate based on the current epoch
-            lr = self.initial_lr + (self.final_lr - self.initial_lr) * (self.last_epoch / self.total_warmup_steps)
-            return [lr for _ in self.base_lrs]
-        else:
-            # After warm-up, continue with the base learning rate
-            return self.base_lrs
-        
-
-class CustomDataset(Dataset):
-    def __init__(self, latent_data, label_embeddings1, label_embeddings2):
-        self.latent_data = latent_data
-        self.label_embeddings1 = label_embeddings1
-        self.label_embeddings2 = label_embeddings2
-
-    def __len__(self):
-        return len(self.latent_data)
-
-    def __getitem__(self, idx):
-        x = self.latent_data[idx]
-        if random.random() < 0.5:
-            y = self.label_embeddings1[idx]
-        else:
-            y = self.label_embeddings2[idx]
-        return x, y
-
-def update_ema(ema_model, model, alpha=0.999):
-    with torch.no_grad():
-        for ema_param, model_param in zip(ema_model.parameters(), model.parameters()):
-            ema_param.data.mul_(alpha).add_(model_param.data, alpha=1-alpha)
-
-
-def set_dropout_to_zero(model):
-    for module in model.modules():
-        if isinstance(module, nn.Dropout):
-            module.p = 0.0
-            print(module)
-
-    for module in model.modules():
-        if isinstance(module, MHAttention):
-            #module.p = 0.0
-            module.dropout_level = 0
-            print(module.dropout_level)
+    main()
