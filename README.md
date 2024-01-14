@@ -3,7 +3,10 @@ Text to Image Latent Diffusion using a Transformer core.
 
 Try with own inputs in Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
 
-<img width="640" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/4bbb9a17-5dd5-416f-8271-3c8d157fc4bd">
+
+<img width="720" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/e01e3094-2487-4c04-bc0f-d9b03eeaed00">
+
+Some examples from a 100MM model trained for 260k iterations (about 32 hours on 1 A100)
 
 
 Codebase to train a Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts. The model generates 256*256 resolution images.
