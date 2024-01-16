@@ -92,6 +92,13 @@ The text and noise conditioning is very simple - we concatenate a pooled CLIP te
 The base model is 101MM parameters and has 12 layers and embedding dimension = 768. I train it with a batch size of 256 on a A100 for 10 hours and learning rate  of `3e-4`. I used 1000 steps for warmup. Due to computational contraints I did not do any ablations for this configuration.
 
 
+## Examples:
+
+a blonde woman cyborg, 8k:
+<img width="1042" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/e343daa9-a534-4e59-927d-a66d1b3f6c21">
+
+
+
 ##  Train and Diffusion Setup:
 
 The setup is fairly simple. 
