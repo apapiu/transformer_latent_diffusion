@@ -1,5 +1,5 @@
 # Transformer Latent Diffusion
-Text to Image Latent Diffusion using a Transformer core.
+Text to Image Latent Diffusion using a Transformer core in PyTorch.
 
 **Try with own inputs**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
 
