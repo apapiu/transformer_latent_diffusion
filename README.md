@@ -65,6 +65,18 @@ The time to generate 16 images on a
 - T4:
 - A100:
 
+## Examples:
+
+More examples generated with the 100MM model - click the photo to see the prompt and other params like cfg and seed:
+![image](tld/img_examples/a%20cute%20grey%20great%20owl_cfg_8_seed_11.png)
+![image](tld/img_examples/watercolor%20of%20a%20cute%20cat%20riding%20a%20motorcycle_cfg_7_seed_11.png)
+![image](tld/img_examples/painting%20of%20a%20cyberpunk%20market_cfg_7_seed_11.png)
+![image](tld/img_examples/isometric%20view%20of%20small%20japanese%20village%20with%20blooming%20trees_cfg_7_seed_11.png)
+![image](tld/img_examples/a%20beautiful%20woman%20with%20blonde%20hair%20in%20her%2050s_cfg_7_seed_11.png)
+![image](tld/img_examples/painting%20of%20a%20cute%20fox%20in%20a%20suit%20in%20a%20field%20of%20poppies_cfg_8_seed_11.png)
+![image](tld/img_examples/an%20aerial%20view%20of%20manhattan%2C%20isometric%20view%2C%20as%20pantinted%20by%20mondrian_cfg_7_seed_11.png)
+
+
 ## Data Processing:
 
 In [data.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py) I have some helper functions to process images and captions. The flow is as follows:
@@ -81,6 +93,7 @@ See [here](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/
 The denoiser model is a transformer based model insipired by [DeIT] and [Pixart Alpha] albeit with quite a few modifications and simplifications. Using a transformer as the denoiser is different from most diffusion models in that most other models used a CNN based U-NET as the denoising backbone. I decided to use a transformer for a few reasons. One was I just wanted to experiment and learn how to build and train transformers. Secondly transformers are fast both to train and to do inference on and they will benefit most from future advances (both in hardware and in software) in performance. 
 
 Transformers are not natively built for spatial data and at first I found a lot of the outputs to be very "patchy". To remediy that I added a depth-wise convolution in the FFN layer of the transformer (this was introduced in the [Local ViT](https://arxiv.org/abs/2104.05707) paper. This allows the model to mix pixels that are close to each other with very little added compute cost.
+
 
 ### Img+Text+Noise Encoding:
 
