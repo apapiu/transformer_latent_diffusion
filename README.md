@@ -1,45 +1,73 @@
-# transformer_latent_diffusion
+# Transformer Latent Diffusion
 Text to Image Latent Diffusion using a Transformer core.
 
-Try with own inputs in Colab: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
+**Try with own inputs**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
 
+Below are some random examples (at 256 resolution) from a 100MM model trained for scratch for 260k iterations (about 32 hours on 1 A100):
 
 <img width="720" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/e01e3094-2487-4c04-bc0f-d9b03eeaed00">
 
-Some examples from a 100MM model trained for 260k iterations (about 32 hours on 1 A100)
+Note that the model has not converged yet and could use more training. 
 
-
-Codebase to train a Text to Image Latent Diffusion Transformer based model in Pytorch. See below for notebooks and examples with prompts. The model generates 256*256 resolution images.
-
-This is part II of aprevious project I did where I trained a pixel level diffusion model in keras. Here I train a latent diffusion model in pytorch. 
-
-The main goal of this project is to showcase a model in Pytorch that is: 
-- fast(almost real time generation)
-- small (100MM params)
+The main goal of this project is to build an accesible diffuson model in Pytorch that is: 
+- fast (almost real time generation)
+- small (~100MM params)
 - reasonably good (of course not Sota)
-- can be trained in a reasonable ammount of time on a single GPU (under 50 hours on a A100 or equivalent).
+- can be trained in a reasonable amount of time on a single GPU (under 50 hours on a A100 or equivalent).
 - uses ~ 1 million images with a focus on data quality over quantity
 
-## Speed:
+This is part II of aprevious [project](https://github.com/apapiu/guided-diffusion-keras) I did where I trained a pixel level diffusion model in keras. Even though this model outputs 4x higher resolution images (256px vs 64px) it's actually faster to both train and sample from which shows the power of training in the latent space and speed of transformer architectures.
+
+## Table of Contents:
+- [Codebase](#codebase)
+- [Usage](#usage)
+- [Model Setup](#model-setup)
+- [Data](#data)
+- [Examples](#examples)
+- [TO-DOs](#todos)
+
+## Codebase:
+The code is written in pure pytorch with as few dependencies as possible.
+
+- [transformer_blocks.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/transformer_blocks.py) - basic transformer building blocks relavant to the transformer denoiser
+- [denoiser.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/denoiser.py) - the architecture of the denoiser transformer
+- [train.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/train.py). The train loop uses `accelerate` so it training can scale to multiple GPUs if needed.
+- [diffusion.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/diffusion.py). Class to generate image from noise using reverse diffusion. Short (~60 lines) and self contained.
+- [data.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py). Data utils to download images/text and process necessary features for the diffusion model.
+
+#### Usage:
+If you have your own dataset of urls+captions the process to train a model on the data would be to first run data.py then run train.py with the correct configs. (TODO - still working on adding parametrizations here - a lot of values are hardcoded. I'll add a notebook with a full run here).
+
+### Dependencies:
+- `pytorch` `numpy` `einops` for model building
+- `wandb` `tqdm` for logging + progress bars
+- `accelerate` for train loop and multi-GPU support
+- `img2dataset` `webdataset` `torchvision` for data downloading and image processing
+- `diffusers` `clip` for pretrained vae and clip text model
+
+### Codebases used for inspiration:
+- [PixArt-alpha](https://github.com/PixArt-alpha/PixArt-alpha)
+- [k-diffusion](https://github.com/crowsonkb/k-diffusion)
+- [nanogpt](https://github.com/karpathy/nanoGPT/tree/master)
+- [LocalViT](https://github.com/ofsoundof/LocalViT)
+
+#### Speed:
 
 I try to speed up training and inference as much as possible by:
 - using mixed precision for training + sdpa
 - precompute all latent and text embeddings
 - using float16 precision for inference
-- using sdpa for the attention natively + torch.compile
+- using sdpa for the attention natively + torch.compile (compile doesn't always work).
 - use a deterministic denoising process (DDIM) for fewer steps
 - TODO: would distillation or something like LCM work here?
 
-The time to generate 16 images on a T4: A100:
-
-
-
-### Code:
-
+The time to generate 16 images on a 
+- T4:
+- A100:
 
 ## Data Processing:
 
-In (data.py)[https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py] I have some helper functions to process images and captions. The flow is as follows:
+In [data.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py) I have some helper functions to process images and captions. The flow is as follows:
 - use `img2dataset` to download images from a dataframe containing urls and captions
 - use `clip` to encode the pormpts and the `vae`  to encode images to latents on a web2dataset data generator.
 - save the latents and text embedding for future training.
@@ -48,7 +76,7 @@ There are two advantages to this approach. One is that the vae encoding is somew
 
 ## Architecture:
 
-The code for the architecture is (here)[https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/denoiser.py]
+See [here](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/denoiser.py) for the denoiser class.
 
 The denoiser model is a transformer based model insipired by [DeIT] and [Pixart Alpha] albeit with quite a few modifications and simplifications. Using a transformer as the denoiser is different from most diffusion models in that most other models used a CNN based U-NET as the denoising backbone. I decided to use a transformer for a few reasons. One was I just wanted to experiment and learn how to build and train transformers. Secondly transformers are fast both to train and to do inference on and they will benefit most from future advances (both in hardware and in software) in performance. 
 
@@ -60,12 +88,53 @@ The image latent inputs are `4*32*32` and we use a patch size of 2 to build 256 
 
 The text and noise conditioning is very simple - we concatenate a pooled CLIP text embedding (`ViT/L14` - 768-dimensional) and the sinsuoidal noise embedding and feed it as input in the cross-attention layer in each transformer block. No unpooled CLIP embeddings are used.
 
-### Params:
-The base model is 101MM parameters and has 12 layers and embedding dimension = 768. We trained it with a batch size of 256 on a A100 for 10 hours and learning rate  of `3e-4`. I used 1000 steps for warmup. Due to computational contraints I did not do any ablations for this configuration.
+### Training:
+The base model is 101MM parameters and has 12 layers and embedding dimension = 768. I train it with a batch size of 256 on a A100 for 10 hours and learning rate  of `3e-4`. I used 1000 steps for warmup. Due to computational contraints I did not do any ablations for this configuration.
 
 
+##  Train and Diffusion Setup:
 
-##  Diffusion Schedule:
+The setup is fairly simple. 
+
+We train a denoising transformer that takes the following three inputs:
+- `noise_level` (sampled from 0 to 1 with more values concentrated close to 0 - I use a beta distribution)
+- image latent (x) corrupted with a level of random noise
+  - for a given `noise_level` between 0 and 1 the corruption is as follows:
+    - `x_noisy = x*(1-noise_level) + eps*noise_level where eps ~ np.random.normal`
+- CLIP embeddings of a text prompt
+  - You can think of this as a numerical representation of a text prompt.
+  - We used used the pool text embedding here (768 dimensional for `ViT/L14`)
+
+The output is a prediction of the denoised image latent - call it `f(x_noisy)`.
+
+The model is trained to minimize the mean squared errror `|f(x_noisy) - x|` between the prediction and actual image
+(you can also use absolute error here). Note that I don't reparametrize the loss in terms of the noise here to keep things simple.
+
+Using this model we then iteratively generate an image from random noise as follows:
+    
+         for i in range(len(self.noise_levels) - 1):
+
+            curr_noise, next_noise = self.noise_levels[i], self.noise_levels[i + 1]
+
+            # predict original denoised image:
+            x0_pred = predict_x_zero(new_img, label, curr_noise)
+
+            # new image at next_noise level is a weighted average of old image and predicted x0:
+            new_img = ((curr_noise - next_noise) * x0_pred + next_noise * new_img) / curr_noise
+
+The `predict_x_zero` method uses classifier free guidance by combining the conditional and unconditional
+prediction: `x0_pred = class_guidance * x0_pred_conditional + (1 - class_guidance) * x0_pred_unconditional`
+
+A bit of math: The approach above falls within the VDM parametrization see 3.1 in [Kingma et al.](https://arxiv.org/pdf/2107.00630.pdf):
+
+$$z_t = \alpha_t x + \sigma_t  \epsilon,  \epsilon ~ n(0,1)$$
+
+Where $z_t$ is the noisy version of $x$ at time $t$.
+
+generally $\alpha_t$ is chosen to be $\sqrt{1-\sigma_t^2}$ so that the process is variance preserving. Here I chose $\alpha_t=1-\sigma_t$ so that we 
+linearly interpolate between the image and random noise. Why? For one it simplifies the updating equation quite a bit and it's easier to understand what the noise to signal ratio will look like. I also found that the model produces sharper images faster - more validation here is needed. The updating equation above is the DDIM model for this parametrization which simplifies to a simple weighted average. Note that the DDIM model deterministically maps random normal noise to images - this has two benefits: we can interpolate in the random normal latent space, it takes fewer steps generaly to get decent image quality.
+
+## TODOS:
 
 
 
