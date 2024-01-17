@@ -50,40 +50,47 @@ def dequantize_latents(lat, clip_val=20):
     lat_norm = (lat.to(torch.float16)/255)*2 - 1
     return lat_norm*clip_val
 
-def get_text_and_latent_embedings(dataloader):
+def get_text_and_latent_embedings(dataloader, vae, model, drive_save_path):
     """dataloader that outputs an img tensor and text_prompts"""
     text_encodings = []
     img_encodings = []
 
+    i = 0
     for img, label in tqdm(dataloader):
 
         #encode text:
-        text_encodings.append(encode_text(label).cpu())
+        text_encodings.append(encode_text(label, model).cpu())
         ##encode images:
-        img_encodings.append(encode_image(img).cpu())
+        img_encodings.append(encode_image(img, vae).cpu())
+
+        if i%100 == 1:
+            print("Saving")
+            np.save(os.path.join(drive_save_path, 'image_latents.npy'), torch.cat(img_encodings).numpy())
+            np.save(os.path.join(drive_save_path, 'text_encodings.npy'), torch.cat(text_encodings).numpy())
 
     img_encodings = torch.cat(img_encodings)
     text_encodings = torch.cat(text_encodings)
     return img_encodings, text_encodings
 
-if __name__ == '__main__':
-    from google.colab import drive
-    drive.mount('/content/drive')
-
-    #get a parquet file from somehwere and save it as csv (optionally clean the dataframe):
-    def get_csv():
+def get_csv():
         df = pd.read_parquet('https://huggingface.co/datasets/wanng/midjourney-v5-202304-clean/resolve/main/data/upscaled_prompts_df.parquet')
         #clean and filter data here...
+        df = df.iloc[:2000]
         df.to_csv("imgs.csv", index=None)
-
-    folder_name = 'test'
+        
+        
+def download_and_process_data(drive_save_path='/kaggle/working/saved_data',
+                              image_size = 256,
+                              bs = 64,
+                              folder_name='test',
+                              caption_col = "clean_prompts",
+                              url_col = "Attachments",
+                              clean_csv_function = get_csv
+                             ):
+    
     csv_path = 'imgs.csv'
-    drive_save_path = '/content/drive/MyDrive/midjourney_test'
     download_data = True
     save_data = True
-
-    bs = 64
-    image_size = 256
 
     if not os.path.exists(folder_name):
         os.mkdir(folder_name)
@@ -93,10 +100,7 @@ if __name__ == '__main__':
 
     to_pil = transforms.ToPILImage()
 
-    caption_col = "clean_prompts"
-    url_col = "Attachments"
-
-    get_csv()
+    #clean_csv_function()
 
     if download_data:
 
@@ -111,13 +115,14 @@ if __name__ == '__main__':
             url_col=url_col,
             caption_col=caption_col,
             enable_wandb=False,
-            number_sample_per_shard=10000,
+            number_sample_per_shard=1000,
             distributor="multiprocessing",
             resize_mode="center_crop"
         )
 
     files = os.listdir(folder_name)
     tar_files = [os.path.join(folder_name, file) for file in files if file.endswith('.tar')]
+    print(tar_files)
 
     dataset = wds.WebDataset(tar_files)
 
@@ -135,8 +140,23 @@ if __name__ == '__main__':
     vae = vae.to('cuda')
     model.to('cuda')
 
-    image_latents, text_encodings = get_text_and_latent_embedings(dataloader)
+    image_latents, text_encodings = get_text_and_latent_embedings(dataloader, vae, model, drive_save_path)
 
     if save_data:
         np.save(os.path.join(drive_save_path, 'image_latents.npy'), image_latents.numpy())
         np.save(os.path.join(drive_save_path, 'text_encodings.npy'), text_encodings.numpy())
+
+if __name__ == '__main__':
+    df = pd.read_parquet('https://huggingface.co/datasets/kakaobrain/coyo-700m/resolve/main/data/part-00021-17da4908-939c-46e5-91d0-15f256041956-c000.snappy.parquet')
+    df = df.iloc[:3000]
+    df.to_csv("imgs.csv", index=None)
+
+    data_path = '/kaggle/working/saved_data'
+    caption_col = 'text'
+    url_col = 'url'
+
+    download_and_process_data(drive_save_path=data_path,
+                              folder_name=caption_col,
+                              caption_col=url_col,
+                              url_col="url",
+                              clean_csv_function = get_csv)
