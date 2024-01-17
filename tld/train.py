@@ -79,19 +79,21 @@ class ModelConfig:
     run_id: str = None
     model_name: str = None
 
-def main(config: ModelConfig, data_path: str, val_path: str):
+@dataclass
+class DataConfig:
+    latent_path: str #path to a numpy file containing latents
+    text_emb_path: str
+    val_path: str
+
+def main(config: ModelConfig, dataconfig: DataConfig):
     """main train loop to be used with accelerate"""
 
     accelerator = Accelerator(mixed_precision="fp16", log_with="wandb")
 
     accelerator.print("Loading Data:")
-    latent_train_data = np.load(os.path.join(data_path, 'image_latents.npy'))
-    train_label_embeddings = np.load(os.path.join(data_path, 'text_encodings.npy'))
-
-    emb_val = torch.tensor(np.load(os.path.join(val_path, 'val_encs.npy')), dtype=torch.float32)
-
-    train_label_embeddings = torch.tensor(train_label_embeddings, dtype=torch.float32)
-    latent_train_data = torch.tensor(latent_train_data, dtype=torch.float32)
+    latent_train_data = torch.tensor(np.load(dataconfig.latent_path), dtype=torch.float32)
+    train_label_embeddings = torch.tensor(np.load(dataconfig.text_emb_path), dtype=torch.float32)
+    emb_val = torch.tensor(np.load(dataconfig.val_path), dtype=torch.float32)
     dataset = TensorDataset(latent_train_data, train_label_embeddings)
     train_loader = DataLoader(dataset, batch_size=config.batch_size, shuffle=True)
 
