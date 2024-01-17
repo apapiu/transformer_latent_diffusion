@@ -19,7 +19,6 @@ from torch.utils.data import DataLoader, TensorDataset
 from safetensors.torch import load_model, save_model
 from diffusers import AutoencoderKL
 
-sys.path.append('transformer_latent_diffusion')
 from tld.denoiser import Denoiser
 from tld.diffusion import DiffusionGenerator
 
@@ -102,24 +101,28 @@ def main(config: ModelConfig, dataconfig: DataConfig):
     
     if accelerator.is_main_process:
         vae = vae.to(accelerator.device)
-
-    accelerator.print("Loading model")
+   
     model = Denoiser(image_size=config.image_size, noise_embed_dims=config.noise_embed_dims,
                  patch_size=config.patch_size, embed_dim=config.embed_dim, dropout=config.dropout,
                  n_layers=config.n_layers)
+    
+    loss_fn = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     if not config.from_scratch:
+        accelerator.print("Loading Model:")
         wandb.restore(config.model_name, run_path=f"apapiu/cifar_diffusion/runs/{config.run_id}",
                       replace=True)
-        load_model(model, config.model_name)
+        full_state_dict = torch.load(config.model_name)
+        model.load_state_dict(full_state_dict['model_ema'])
+        optimizer.load_state_dict(full_state_dict['opt_state'])
+        global_step = full_state_dict['global_step']
+    else:
+        global_step = 0
 
     if accelerator.is_local_main_process:
         ema_model = copy.deepcopy(model).to(accelerator.device)
         diffuser = DiffusionGenerator(ema_model, vae,  accelerator.device, torch.float32)
-
-    global_step = 0
-    loss_fn = nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     accelerator.print("model prep")
     model, train_loader, optimizer = accelerator.prepare(
@@ -156,15 +159,21 @@ def main(config: ModelConfig, dataconfig: DataConfig):
             mask = torch.rand(y.size(0), device=accelerator.device) < prob
             label[mask] = 0 # OR replacement_vector
 
-            if global_step % 500 == 0 and accelerator.is_local_main_process:
-                out = eval_gen(diffuser=diffuser, labels=emb_val)
-                out.save('img.jpg')
-                accelerator.log({f"step: {global_step}": wandb.Image("img.jpg")})
-
-                ###todo: add dict here to save the opt state:
-                state_dict_path = 'curr_state_dict.pth'
-                accelerator.save_model(ema_model, state_dict_path)
-                wandb.save('curr_state_dict.pth/model.safetensors')
+            if global_step % 1000 == 0:
+                accelerator.wait_for_everyone()
+                if accelerator.is_main_process:
+                    ##eval and saving:
+                    out = eval_gen(diffuser=diffuser, labels=emb_val)
+                    out.save('img.jpg')
+                    accelerator.log({f"step: {global_step}": wandb.Image("img.jpg")})
+                    
+                    opt_unwrapped = accelerator.unwrap_model(optimizer)
+                    full_state_dict = {'model_ema':ema_model.state_dict(),
+                                    'opt_state':opt_unwrapped.state_dict(),
+                                    'global_step':global_step
+                                    }
+                    accelerator.save(full_state_dict, config.model_name)
+                    wandb.save(config.model_name)
 
             model.train()
 
