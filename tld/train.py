@@ -58,18 +58,16 @@ def update_ema(ema_model, model, alpha=0.999):
             ema_param.data.mul_(alpha).add_(model_param.data, alpha=1-alpha)
 
 
-def main():
+def main(data_path, val_path):
     ## see this for more: https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     
     accelerator = Accelerator(mixed_precision="fp16", log_with="wandb")
 
     ####DATA LOADING:
-    data_path = '/content/drive/MyDrive/embs_1mil'
-    latent_train_data = np.load(os.path.join(data_path, 'image_latents256.npy'))
-    train_label_embeddings = np.load(os.path.join(data_path, 'orig_text_encodings256.npy'))
+    latent_train_data = np.load(os.path.join(data_path, 'image_latents.npy'))
+    train_label_embeddings = np.load(os.path.join(data_path, 'text_encodings.npy'))
 
-    data_path = '/content/drive/MyDrive/embs_1mil'
-    emb_val = torch.tensor(np.load(os.path.join(data_path, 'val_encs.npy')), dtype=torch.float32)
+    emb_val = torch.tensor(np.load(os.path.join(val_path, 'val_encs.npy')), dtype=torch.float32)
 
     train_label_embeddings = torch.tensor(train_label_embeddings, dtype=torch.float32)
     latent_train_data = torch.tensor(latent_train_data, dtype=torch.float32)
@@ -87,8 +85,8 @@ def main():
     run_id = '3ix3i6qp'
     model_name = 'curr_state_dict.pth/model.safetensors'
 
-    embed_dim = 256
-    n_layers = 6
+    embed_dim = 512
+    n_layers = 8
 
     clip_embed_size = 768
     scaling_factor = 8
@@ -98,7 +96,7 @@ def main():
     dropout = 0
     mlp_multiplier = 4
 
-    batch_size = 256
+    batch_size = 128
     class_guidance = 3
     lr=3e-4
 
@@ -130,7 +128,7 @@ def main():
 
     if accelerator.is_local_main_process:
         ema_model = copy.deepcopy(model).to(accelerator.device)
-        diffuser = DiffusionGenerator(ema_model, vae, accelerator.device, torch.float32)
+        diffuser = DiffusionGenerator(ema_model, vae,  accelerator.device, torch.float32)
 
     config = {k: v for k, v in locals().items() if k in ['embed_dim', 'n_layers', 'clip_embed_size', 'scaling_factor',
                                                          'image_size', 'noise_embed_dims', 'dropout',
@@ -159,12 +157,7 @@ def main():
     ### and train:
 
     for i in range(1, n_epoch+1):
-        accelerator.print(f'epoch: {i}')
-
-        if accelerator.is_local_main_process:
-            state_dict_path = 'curr_state_dict.pth'
-            accelerator.save_model(ema_model, state_dict_path)
-            wandb.save('curr_state_dict.pth/model.safetensors')
+        accelerator.print(f'epoch: {i}')            
 
         for x, y in tqdm(train_loader):
             x = x/scaling_factor
@@ -187,6 +180,11 @@ def main():
                 out = eval_gen(diffuser=diffuser, labels=emb_val)
                 out.save('img.jpg')
                 accelerator.log({f"step: {global_step}": wandb.Image("img.jpg")})
+
+                ###todo: add dict here to save the opt state:
+                state_dict_path = 'curr_state_dict.pth'
+                accelerator.save_model(ema_model, state_dict_path)
+                wandb.save('curr_state_dict.pth/model.safetensors')
 
             model.train()
 
