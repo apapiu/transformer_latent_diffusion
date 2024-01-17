@@ -177,17 +177,18 @@ def main(config: ModelConfig, dataconfig: DataConfig):
 
             model.train()
 
-            ###train loop:
-            optimizer.zero_grad()
+            with accelerator.accumulate():
+                ###train loop:
+                optimizer.zero_grad()
 
-            pred = model(x_noisy, noise_level.view(-1,1), label)
-            loss = loss_fn(pred, x)
-            accelerator.log({"train_loss":loss.item()}, step=global_step)
-            accelerator.backward(loss)
-            optimizer.step()
+                pred = model(x_noisy, noise_level.view(-1,1), label)
+                loss = loss_fn(pred, x)
+                accelerator.log({"train_loss":loss.item()}, step=global_step)
+                accelerator.backward(loss)
+                optimizer.step()
 
-            if accelerator.is_local_main_process:
-                update_ema(ema_model, model, alpha=config.alpha)
+                if accelerator.is_main_process:
+                    update_ema(ema_model, model, alpha=config.alpha)
 
             global_step += 1
     accelerator.end_training()
