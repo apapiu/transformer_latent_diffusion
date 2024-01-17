@@ -5,6 +5,9 @@ import copy
 import numpy as np
 from tqdm import tqdm
 
+from dataclasses import dataclass
+
+
 import wandb
 import torchvision.utils as vutils
 
@@ -58,7 +61,13 @@ def update_ema(ema_model, model, alpha=0.999):
             ema_param.data.mul_(alpha).add_(model_param.data, alpha=1-alpha)
 
 
-def main(data_path, val_path):
+@dataclass
+class TrainConfig:
+    embed_dim: int
+    n_layers: int
+    n_epoch: int
+
+def main(config, data_path, val_path):
     ## see this for more: https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     
     accelerator = Accelerator(mixed_precision="fp16", log_with="wandb")
@@ -85,8 +94,8 @@ def main(data_path, val_path):
     run_id = '3ix3i6qp'
     model_name = 'curr_state_dict.pth/model.safetensors'
 
-    embed_dim = 512
-    n_layers = 8
+    embed_dim = config.embed_dim
+    n_layers = config.n_layers
 
     clip_embed_size = 768
     scaling_factor = 8
@@ -105,7 +114,7 @@ def main(data_path, val_path):
     noise_embed_dims = 128
     diffusion_n_iter = 35
 
-    n_epoch = 10
+    n_epoch = config.n_epoch
 
     #end config:
 
@@ -205,7 +214,3 @@ def main(data_path, val_path):
             
 # args = (vae, "fp16")
 # notebook_launcher(training_loop, num_processes=1)
-    
-if __name__ == '__main__':
-
-    main()
