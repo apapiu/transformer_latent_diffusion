@@ -37,8 +37,28 @@ The code is written in pure PyTorch with as few dependencies as possible.
 - [diffusion.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/diffusion.py). Class to generate image from noise using reverse diffusion. Short (~60 lines) and self-contained.
 - [data.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py). Data utils to download images/text and process necessary features for the diffusion model.
 
-#### Usage:
-If you have your own dataset of URLs + captions, the process to train a model on the data would be to first run `data.py` then run `train.py` with the correct configs. (TODO - still working on adding parameterizations here - a lot of values are hardcoded. I'll add a notebook with a full run here).
+### Usage:
+If you have your own dataset of URLs + captions, the process to train a model on the data consists of two steps:
+
+1. Run `train.download_and_process_data` to obtain the latent and text encodings as numpy files. 
+
+
+2. Run the code below in a notebook:
+```python
+!wandb login
+import os
+from tld.train import main, DataConfig, ModelConfig
+from accelerate import notebook_launcher
+
+data_config = DataConfig(latent_path='path/to/image_latents.npy',
+                         text_emb_path='path/to/text_encodings.npy',
+                         val_path='path/to/val_encodings.npy')
+
+model_config = ModelConfig(embed_dim=512, n_layers=6) #see ModelConfig for more params
+
+#run the training process on 2 GPUs:
+notebook_launcher(main, (model_config, data_config), num_processes=2)
+```
 
 ### Dependencies:
 - `PyTorch` `numpy` `einops` for model building
