@@ -7,13 +7,14 @@ Below are some random examples (at 256 resolution) from a 100MM model trained fr
 
 <img width="720" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/e01e3094-2487-4c04-bc0f-d9b03eeaed00">
 
-Clip interpolation Examples:
+#### Clip interpolation Examples:
+
 <img width="1361" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/a079458b-9bd5-4557-aa7a-5a3e78f31b53">
 a photo of a cat → an anime drawing of a super saiyan cat, artstation
 
 
 <img width="1399" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/8731d87a-89fa-43a2-847d-c7ff772de286">
-a cute corgi → starry night by van gogh
+a cute great gray owl → starry night by van gogh
 
 
 Note that the model has not converged yet and could use more training. 
