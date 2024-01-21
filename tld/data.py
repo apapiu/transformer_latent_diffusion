@@ -68,39 +68,32 @@ def get_text_and_latent_embedings(dataloader, vae, model, drive_save_path):
             np.save(os.path.join(drive_save_path, 'image_latents.npy'), torch.cat(img_encodings).numpy())
             np.save(os.path.join(drive_save_path, 'text_encodings.npy'), torch.cat(text_encodings).numpy())
 
+        i += 1
+
     img_encodings = torch.cat(img_encodings)
     text_encodings = torch.cat(text_encodings)
     return img_encodings, text_encodings
 
-def get_csv():
-        df = pd.read_parquet('https://huggingface.co/datasets/wanng/midjourney-v5-202304-clean/resolve/main/data/upscaled_prompts_df.parquet')
-        #clean and filter data here...
-        df = df.iloc[:2000]
-        df.to_csv("imgs.csv", index=None)
         
         
-def download_and_process_data(drive_save_path='/kaggle/working/saved_data',
+def download_and_process_data(latent_save_path='latents',
+                              raw_imgs_save_path='raw_imgs',
+                              csv_path = 'imgs.csv',
                               image_size = 256,
                               bs = 64,
-                              folder_name='test',
-                              caption_col = "clean_prompts",
-                              url_col = "Attachments",
-                              clean_csv_function = get_csv
+                              caption_col = "captions",
+                              url_col = "url",
+                              download_data=True,
+                              number_sample_per_shard=10000,
                              ):
     
-    csv_path = 'imgs.csv'
-    download_data = True
     save_data = True
 
-    if not os.path.exists(folder_name):
-        os.mkdir(folder_name)
+    if not os.path.exists(raw_imgs_save_path):
+        os.mkdir(raw_imgs_save_path)
 
-    if not os.path.exists(drive_save_path):
-        os.mkdir(drive_save_path)
-
-    to_pil = transforms.ToPILImage()
-
-    #clean_csv_function()
+    if not os.path.exists(latent_save_path):
+        os.mkdir(latent_save_path)
 
     if download_data:
 
@@ -109,19 +102,19 @@ def download_and_process_data(drive_save_path='/kaggle/working/saved_data',
             thread_count=64,
             url_list=csv_path,
             image_size=image_size,
-            output_folder=folder_name,
+            output_folder=raw_imgs_save_path,
             output_format="webdataset",
             input_format="csv",
             url_col=url_col,
             caption_col=caption_col,
             enable_wandb=False,
-            number_sample_per_shard=1000,
+            number_sample_per_shard=number_sample_per_shard,
             distributor="multiprocessing",
             resize_mode="center_crop"
         )
 
-    files = os.listdir(folder_name)
-    tar_files = [os.path.join(folder_name, file) for file in files if file.endswith('.tar')]
+    files = os.listdir(raw_imgs_save_path)
+    tar_files = [os.path.join(raw_imgs_save_path, file) for file in files if file.endswith('.tar')]
     print(tar_files)
 
     dataset = wds.WebDataset(tar_files)
@@ -140,23 +133,39 @@ def download_and_process_data(drive_save_path='/kaggle/working/saved_data',
     vae = vae.to('cuda')
     model.to('cuda')
 
-    image_latents, text_encodings = get_text_and_latent_embedings(dataloader, vae, model, drive_save_path)
+    print("Starting to encode latents and text:")
+    image_latents, text_encodings = get_text_and_latent_embedings(dataloader, vae, model, latent_save_path)
 
     if save_data:
-        np.save(os.path.join(drive_save_path, 'image_latents.npy'), image_latents.numpy())
-        np.save(os.path.join(drive_save_path, 'text_encodings.npy'), text_encodings.numpy())
+        np.save(os.path.join(latent_save_path, 'image_latents.npy'), image_latents.numpy())
+        np.save(os.path.join(latent_save_path, 'text_encodings.npy'), text_encodings.numpy())
 
 if __name__ == '__main__':
-    df = pd.read_parquet('https://huggingface.co/datasets/kakaobrain/coyo-700m/resolve/main/data/part-00021-17da4908-939c-46e5-91d0-15f256041956-c000.snappy.parquet')
-    df = df.iloc[:3000]
-    df.to_csv("imgs.csv", index=None)
+    data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
+    df = pd.read_parquet(data_link)
+    ###add additional data cleaning here...
+    df = df.iloc[:2000]
+    df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
 
-    data_path = '/kaggle/working/saved_data'
-    caption_col = 'text'
+
+    caption_col = 'text' 
     url_col = 'url'
+    latent_save_path = 'latents' #could also be a path to google drive for persisting the data
+    raw_imgs_save_path = 'raw_imgs' #raw imgs are not needed for training so they can be deleted once done
+    use_drive = False
 
-    download_and_process_data(drive_save_path=data_path,
-                              folder_name=caption_col,
-                              caption_col=url_col,
-                              url_col="url",
-                              clean_csv_function = get_csv)
+    if use_drive:
+        from google.colab import drive
+        drive.mount('/content/drive')
+
+
+    download_and_process_data(latent_save_path=latent_save_path,
+                                raw_imgs_save_path=raw_imgs_save_path,
+                                csv_path='imgs.csv',
+                                image_size=256,
+                                bs=64,
+                                caption_col=caption_col,
+                                url_col = url_col,
+                                download_data=True,
+                                number_sample_per_shard=1000
+                            )
