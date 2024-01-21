@@ -7,6 +7,16 @@ Below are some random examples (at 256 resolution) from a 100MM model trained fr
 
 <img width="720" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/e01e3094-2487-4c04-bc0f-d9b03eeaed00">
 
+#### Clip interpolation Examples:
+
+<img width="1361" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/a079458b-9bd5-4557-aa7a-5a3e78f31b53">
+a photo of a cat → an anime drawing of a super saiyan cat, artstation
+
+
+<img width="1399" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/8731d87a-89fa-43a2-847d-c7ff772de286">
+a cute great gray owl → starry night by van gogh
+
+
 Note that the model has not converged yet and could use more training. 
 
 The main goal of this project is to build an accessible diffusion model in PyTorch that is: 
@@ -98,6 +108,9 @@ More examples generated with the 100MM model - click the photo to see the prompt
 ![image](tld/img_examples/a%20beautiful%20woman%20with%20blonde%20hair%20in%20her%2050s_cfg_7_seed_11.png)
 ![image](tld/img_examples/painting%20of%20a%20cute%20fox%20in%20a%20suit%20in%20a%20field%20of%20poppies_cfg_8_seed_11.png)
 ![image](tld/img_examples/an%20aerial%20view%20of%20manhattan%2C%20isometric%20view%2C%20as%20pantinted%20by%20mondrian_cfg_7_seed_11.png)
+
+### Clip Interpolation:
+<img width="1361" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/a079458b-9bd5-4557-aa7a-5a3e78f31b53">
 
 
 ## Data Processing:
