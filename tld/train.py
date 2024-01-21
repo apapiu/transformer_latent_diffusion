@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-import os 
-import sys
+
 import copy
 import numpy as np
 from tqdm import tqdm
@@ -16,7 +15,6 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
-from safetensors.torch import load_model, save_model
 from diffusers import AutoencoderKL
 
 from tld.denoiser import Denoiser
@@ -77,6 +75,8 @@ class ModelConfig:
     from_scratch: bool = True
     run_id: str = None
     model_name: str = None
+    beta_a: float = 0.75
+    beta_b: float = 0.75
 
 @dataclass
 class DataConfig:
@@ -137,15 +137,15 @@ def main(config: ModelConfig, dataconfig: DataConfig):
     accelerator.print(count_parameters(model))
     accelerator.print(count_parameters_per_layer(model))
 
-    ### and train:
-
+    ### Train:
     for i in range(1, config.n_epoch+1):
         accelerator.print(f'epoch: {i}')            
 
         for x, y in tqdm(train_loader):
             x = x/config.scaling_factor
 
-            noise_level = torch.tensor(np.random.beta(1, 2.7, len(x)), device=accelerator.device)
+            noise_level = torch.tensor(np.random.beta(config.beta_a, config.beta_b, len(x)),
+                                        device=accelerator.device)
             signal_level = 1 - noise_level
             noise = torch.randn_like(x)
 
