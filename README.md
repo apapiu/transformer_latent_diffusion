@@ -9,12 +9,13 @@ Below are some random examples (at 256 resolution) from a 100MM model trained fr
 
 #### Clip interpolation Examples:
 
-<img width="1361" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/a079458b-9bd5-4557-aa7a-5a3e78f31b53">
-a photo of a cat → an anime drawing of a super saiyan cat, artstation
+a photo of a cat → an anime drawing of a super saiyan cat, artstation:
 
+<img width="1361" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/a079458b-9bd5-4557-aa7a-5a3e78f31b53">
+
+a cute great gray owl → starry night by van gogh:
 
 <img width="1399" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/8731d87a-89fa-43a2-847d-c7ff772de286">
-a cute great gray owl → starry night by van gogh
 
 
 Note that the model has not converged yet and could use more training. 
@@ -50,10 +51,10 @@ The code is written in pure PyTorch with as few dependencies as possible.
 ### Usage:
 If you have your own dataset of URLs + captions, the process to train a model on the data consists of two steps:
 
-1. Run `train.download_and_process_data` to obtain the latent and text encodings as numpy files. 
+1. Use `train.download_and_process_data` to obtain the latent and text encodings as numpy files. 
 
+2. use the `train.main` function in an accelerate `notebook_launcher` - see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1sKk0usxEF4bmdCDcNQJQNMt4l9qBOeAM?usp=sharing) for a colab notebook that trains a model on 100k images from scratch. Note that this downloads already pre-preprocessed latents and embeddings from [here](https://huggingface.co/apapiu/small_ldt/tree/main).
 
-2. Run the code below in a notebook:
 ```python
 !wandb login
 import os
