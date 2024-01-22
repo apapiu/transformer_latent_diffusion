@@ -55,7 +55,7 @@ class DiffusionGenerator:
             return torch.randn(num_imgs, 4, img_size, img_size, dtype=self.model_dtype, 
                                device=self.device, generator=generator)
         else:
-            return seeds.to(self.model_dtype, self.device)
+            return seeds.to(self.device, self.model_dtype)
 
     def apply_classifier_free_guidance(self, x0_pred, num_imgs, class_guidance):
         """Apply classifier-free guidance to the predictions."""
