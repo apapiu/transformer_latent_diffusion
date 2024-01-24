@@ -93,12 +93,15 @@ I try to speed up training and inference as much as possible by:
 - precompute all latent and text embeddings
 - using float16 precision for inference
 - using [sdpa] for the attention natively + torch.compile() (compile doesn't always work).
-- use a deterministic denoising process (DDIM) for fewer steps
+- use a highly performant sampler (DPM-Solver++(2M)) that gets good results in ~ 15 steps.
 - TODO: would distillation or something like LCM work here?
+- TODO: use flash-attention2?
+- TODO: use smaller vae?
 
-The time to generate 16 images on a 
-- T4:
-- A100:
+The time to generate a batch of 36 images (15 iterations) on a: 
+- T4: ~ 3.5 seconds
+- A100: ~ 0.6 seconds
+In fact on an A100 the vae becomes the bottleneck even though it is only used once.
 
 
 ## Examples:
