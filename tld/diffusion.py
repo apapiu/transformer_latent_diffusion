@@ -74,6 +74,7 @@ class DiffusionGenerator:
         return x0_pred_img, x0_pred
 
     def pred_image(self, noisy_image, labels, noise_level, class_guidance):
+        num_imgs = noisy_image.size(0)
         noises = torch.full((2*num_imgs, 1), noise_level)
         x0_pred = self.model(torch.cat([noisy_image, noisy_image]),
                                     noises.to(self.device, self.model_dtype),
