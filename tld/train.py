@@ -77,6 +77,7 @@ class ModelConfig:
     model_name: str = None
     beta_a: float = 0.75
     beta_b: float = 0.75
+    save_and_eval_every_iters: int = 1000
 
 @dataclass
 class DataConfig:
@@ -159,7 +160,7 @@ def main(config: ModelConfig, dataconfig: DataConfig):
             mask = torch.rand(y.size(0), device=accelerator.device) < prob
             label[mask] = 0 # OR replacement_vector
 
-            if global_step % 1000 == 0:
+            if global_step % config.save_and_eval_every_iters == 0:
                 accelerator.wait_for_everyone()
                 if accelerator.is_main_process:
                     ##eval and saving:
