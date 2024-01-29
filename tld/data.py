@@ -54,6 +54,7 @@ def get_text_and_latent_embedings(dataloader, vae, model, drive_save_path):
     """dataloader that outputs an img tensor and text_prompts"""
     text_encodings = []
     img_encodings = []
+    text_captions = []
 
     i = 0
     for img, label in tqdm(dataloader):
@@ -62,17 +63,19 @@ def get_text_and_latent_embedings(dataloader, vae, model, drive_save_path):
         text_encodings.append(encode_text(label, model).cpu())
         ##encode images:
         img_encodings.append(encode_image(img, vae).cpu())
+        text_captions.extend(label)
 
         if i%100 == 1:
             print("Saving")
             np.save(os.path.join(drive_save_path, 'image_latents.npy'), torch.cat(img_encodings).numpy())
             np.save(os.path.join(drive_save_path, 'text_encodings.npy'), torch.cat(text_encodings).numpy())
+            np.save(os.path.join(drive_save_path, 'text_captions.npy'), np.array(text_captions))
 
         i += 1
 
     img_encodings = torch.cat(img_encodings)
     text_encodings = torch.cat(text_encodings)
-    return img_encodings, text_encodings
+    return img_encodings, text_encodings, text_captions
 
         
         
@@ -134,11 +137,12 @@ def download_and_process_data(latent_save_path='latents',
     model.to('cuda')
 
     print("Starting to encode latents and text:")
-    image_latents, text_encodings = get_text_and_latent_embedings(dataloader, vae, model, latent_save_path)
+    image_latents, text_encodings, text_captions = get_text_and_latent_embedings(dataloader, vae, model, latent_save_path)
 
     if save_data:
         np.save(os.path.join(latent_save_path, 'image_latents.npy'), image_latents.numpy())
         np.save(os.path.join(latent_save_path, 'text_encodings.npy'), text_encodings.numpy())
+        np.save(os.path.join(latent_save_path, 'text_captions.npy'), np.array(text_captions))
 
 if __name__ == '__main__':
     data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
