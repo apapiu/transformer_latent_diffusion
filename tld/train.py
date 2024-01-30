@@ -21,16 +21,18 @@ from tld.denoiser import Denoiser
 from tld.diffusion import DiffusionGenerator
 
 
-def eval_gen(diffuser, labels):
+def eval_gen(diffuser, labels, masked_latents):
     class_guidance=4.5
     seed=10
     out, _ = diffuser.generate(labels=torch.repeat_interleave(labels, 8, dim=0),
                                         num_imgs=64,
                                         class_guidance=class_guidance,
                                         seed=seed,
-                                        n_iter=40,
+                                        n_iter=30,
                                         exponent=1,
                                         sharp_f=0.1,
+                                        use_ddpm_plus=True,
+                                        masked_latents=masked_latents
                                         )
 
     out = to_pil((vutils.make_grid((out+1)/2, nrow=8, padding=4)).float().clip(0, 1))
@@ -62,7 +64,7 @@ class ModelConfig:
     scaling_factor: int = 8
     patch_size: int = 2
     image_size: int = 32 
-    n_channels: int = 4
+    n_channels: int = 4+4
     dropout: float = 0
     mlp_multiplier: int = 4
     batch_size: int = 128
@@ -92,6 +94,10 @@ def main(config: ModelConfig, dataconfig: DataConfig):
 
     accelerator.print("Loading Data:")
     latent_train_data = torch.tensor(np.load(dataconfig.latent_path), dtype=torch.float32)
+
+    masked_latents = latent_train_data[:64].clone()
+    masked_latents[:, :, :, 16:] = 0
+
     train_label_embeddings = torch.tensor(np.load(dataconfig.text_emb_path), dtype=torch.float32)
     emb_val = torch.tensor(np.load(dataconfig.val_path), dtype=torch.float32)
     dataset = TensorDataset(latent_train_data, train_label_embeddings)
@@ -105,7 +111,7 @@ def main(config: ModelConfig, dataconfig: DataConfig):
    
     model = Denoiser(image_size=config.image_size, noise_embed_dims=config.noise_embed_dims,
                  patch_size=config.patch_size, embed_dim=config.embed_dim, dropout=config.dropout,
-                 n_layers=config.n_layers)
+                 n_layers=config.n_layers, n_channels=config.n_channels)
     
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
@@ -115,7 +121,15 @@ def main(config: ModelConfig, dataconfig: DataConfig):
         wandb.restore(config.model_name, run_path=f"apapiu/cifar_diffusion/runs/{config.run_id}",
                       replace=True)
         full_state_dict = torch.load(config.model_name)
-        model.load_state_dict(full_state_dict['model_ema'])
+
+        state_dict = full_state_dict['model_ema']
+        #initialize weights with zero - only first time we fine-tune:
+        print("initalizing zero weight in conv patch:")
+        new_weights = torch.zeros((16, 8, 2, 2))
+        new_weights[:, :4, :, :] = state_dict['denoiser_trans_block.patchify_and_embed.0.weight']
+        state_dict['denoiser_trans_block.patchify_and_embed.0.weight'] = new_weights
+
+        model.load_state_dict(state_dict)
         optimizer.load_state_dict(full_state_dict['opt_state'])
         global_step = full_state_dict['global_step']
     else:
@@ -153,6 +167,13 @@ def main(config: ModelConfig, dataconfig: DataConfig):
             x_noisy = noise_level.view(-1,1,1,1)*noise + signal_level.view(-1,1,1,1)*x
 
             x_noisy = x_noisy.float()
+
+            #the input is the noisy latent and the unnoised first half of latent:
+            first_half = x.clone()
+            first_half[:, :, :, 16:] = 0
+            
+            x_noisy = torch.cat([x_noisy, first_half], dim=1) #(bs, 4+4, h, w)
+
             noise_level = noise_level.float()
             label = y
 
@@ -164,7 +185,7 @@ def main(config: ModelConfig, dataconfig: DataConfig):
                 accelerator.wait_for_everyone()
                 if accelerator.is_main_process:
                     ##eval and saving:
-                    out = eval_gen(diffuser=diffuser, labels=emb_val)
+                    out = eval_gen(diffuser=diffuser, labels=emb_val, masked_latents=masked_latents)
                     out.save('img.jpg')
                     accelerator.log({f"step: {global_step}": wandb.Image("img.jpg")})
                     

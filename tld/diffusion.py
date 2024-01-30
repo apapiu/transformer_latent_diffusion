@@ -24,7 +24,8 @@ class DiffusionGenerator:
                  exponent=1,
                  seeds=None,
                  noise_levels=None,
-                 use_ddpm_plus=True):
+                 use_ddpm_plus=True,
+                 masked_latents=None):
         """Generate images via reverse diffusion.
         if use_ddpm_plus=True uses Algorithm 2 DPM-Solver++(2M) here: https://arxiv.org/pdf/2211.01095.pdf
         else use ddim with alpha = 1-sigma
@@ -48,7 +49,9 @@ class DiffusionGenerator:
         for i in tqdm(range(len(noise_levels) - 1)):
             curr_noise, next_noise = noise_levels[i], noise_levels[i + 1]
             
-            x0_pred = self.pred_image(x_t, labels, curr_noise, class_guidance)
+            ###we need to add masked latents -> 
+            x0_pred = self.pred_image(torch.cat([x_t, masked_latents], dim=1),
+                                       labels, curr_noise, class_guidance)
 
             if x0_pred_prev is None:
                 x_t = ((curr_noise - next_noise) * x0_pred + next_noise * x_t) / curr_noise
@@ -64,7 +67,8 @@ class DiffusionGenerator:
 
             x0_pred_prev = x0_pred
 
-        x0_pred = self.pred_image(x_t, labels, next_noise, class_guidance)
+        x0_pred = self.pred_image(torch.cat([x_t, masked_latents], dim=1), 
+                                  labels, next_noise, class_guidance)
 
         #shifting latents works a bit like an image editor:
         x0_pred[:, 3, :, :] += sharp_f
