@@ -19,7 +19,9 @@ class DenoiserTransBlock(nn.Module):
         self.mlp_multiplier = mlp_multiplier
 
         seq_len = int((self.img_size/self.patch_size)*((self.img_size/self.patch_size)))
-        patch_dim = self.n_channels*self.patch_size*self.patch_size
+
+        ##harcode for now:
+        patch_dim = 16#self.n_channels*self.patch_size*self.patch_size
 
         self.patchify_and_embed = nn.Sequential(
                                        nn.Conv2d(self.n_channels, patch_dim, kernel_size=self.patch_size, stride=self.patch_size),
@@ -63,7 +65,8 @@ class DenoiserTransBlock(nn.Module):
 class Denoiser(nn.Module):
     def __init__(self,
                  image_size, noise_embed_dims, patch_size, embed_dim, dropout, n_layers,
-                 text_emb_size=768):
+                 text_emb_size=768,
+                 n_channels=4):
         super().__init__()
 
         self.image_size = image_size
@@ -76,7 +79,7 @@ class Denoiser(nn.Module):
                                            nn.Linear(self.embed_dim, self.embed_dim)
                                            )
 
-        self.denoiser_trans_block = DenoiserTransBlock(patch_size, image_size, embed_dim, dropout, n_layers)
+        self.denoiser_trans_block = DenoiserTransBlock(patch_size, image_size, embed_dim, dropout, n_layers, n_channels=n_channels)
         self.norm = nn.LayerNorm(self.embed_dim)
         self.label_proj = nn.Linear(text_emb_size, self.embed_dim)
 
