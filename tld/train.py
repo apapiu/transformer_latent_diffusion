@@ -124,13 +124,13 @@ def main(config: ModelConfig, dataconfig: DataConfig):
 
         state_dict = full_state_dict['model_ema']
         #initialize weights with zero - only first time we fine-tune:
-        print("initalizing zero weight in conv patch:")
-        new_weights = torch.zeros((16, 8, 2, 2))
-        new_weights[:, :4, :, :] = state_dict['denoiser_trans_block.patchify_and_embed.0.weight']
-        state_dict['denoiser_trans_block.patchify_and_embed.0.weight'] = new_weights
+        # print("initalizing zero weight in conv patch:")
+        # new_weights = torch.zeros((16, 8, 2, 2))
+        # new_weights[:, :4, :, :] = state_dict['denoiser_trans_block.patchify_and_embed.0.weight']
+        # state_dict['denoiser_trans_block.patchify_and_embed.0.weight'] = new_weights
 
         model.load_state_dict(state_dict)
-        optimizer.load_state_dict(full_state_dict['opt_state'])
+        #optimizer.load_state_dict(full_state_dict['opt_state'])
         global_step = full_state_dict['global_step']
     else:
         global_step = 0
@@ -204,7 +204,7 @@ def main(config: ModelConfig, dataconfig: DataConfig):
                 optimizer.zero_grad()
 
                 pred = model(x_noisy, noise_level.view(-1,1), label)
-                loss = loss_fn(pred, x)
+                loss = loss_fn(pred[:, :, :, 16:], x[:, :, :, 16:]) ### make the loss on only the masked part.
                 accelerator.log({"train_loss":loss.item()}, step=global_step)
                 accelerator.backward(loss)
                 optimizer.step()
