@@ -46,6 +46,9 @@ class DiffusionGenerator:
 
         x0_pred_prev = None
 
+        masked_latents = masked_latents.to(self.device, self.model_dtype)
+        masked_latents = masked_latents/scale_factor
+
         for i in tqdm(range(len(noise_levels) - 1)):
             curr_noise, next_noise = noise_levels[i], noise_levels[i + 1]
             
@@ -74,7 +77,10 @@ class DiffusionGenerator:
         x0_pred[:, 3, :, :] += sharp_f
         x0_pred[:, 0, :, :] += bright_f
 
-        x0_pred_img = self.vae.decode((x0_pred*scale_factor).to(self.model_dtype))[0].cpu()
+        x0_pred[:, :, :, :16] =  masked_latents[:, :, :, :16] 
+
+        x0_pred_img = self.vae.decode((x0_pred*scale_factor).half())[0].cpu()
+
         return x0_pred_img, x0_pred
 
     def pred_image(self, noisy_image, labels, noise_level, class_guidance):
