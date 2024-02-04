@@ -30,7 +30,7 @@ class MHAttention(nn.Module):
         assert q.size(-1) == k.size(-1)
         assert k.size(-2) == v.size(-2)
 
-        bs = q.size(0)
+        bs, seq_len, _ = q.size(0)
         d_k = q.size(-1) // self.n_heads
 
         q = q.view(bs, q.size(1), self.n_heads, d_k).permute(0, 2, 1, 3)
@@ -45,7 +45,7 @@ class MHAttention(nn.Module):
                                                           is_causal=self.is_causal,
                                                           dropout_p=self.dropout_level if self.training else 0)
         
-        out = out.permute(0, 2, 1, 3).contiguous().view(bs, out.size(1), -1)
+        out = out.permute(0, 2, 1, 3).contiguous().view(bs, seq_len, -1)
         #out = rearrange(out, 'bs h n d -> bs n (d h)', h=self.n_heads)
 
         return out
