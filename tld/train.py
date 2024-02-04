@@ -107,8 +107,12 @@ def main(config: ModelConfig, dataconfig: DataConfig):
                  patch_size=config.patch_size, embed_dim=config.embed_dim, dropout=config.dropout,
                  n_layers=config.n_layers)
     
+    
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
+    accelerator.print("Compiling model:")
+    model = torch.compile(model)
 
     if not config.from_scratch:
         accelerator.print("Loading Model:")
