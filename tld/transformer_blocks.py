@@ -30,23 +30,14 @@ class MHAttention(nn.Module):
         assert q.size(-1) == k.size(-1)
         assert k.size(-2) == v.size(-2)
 
-        bs, seq_len, _ = q.size(0)
-        d_k = q.size(-1) // self.n_heads
-
-        q = q.view(bs, q.size(1), self.n_heads, d_k).permute(0, 2, 1, 3)
-        k = k.view(bs, k.size(1), self.n_heads, d_k).permute(0, 2, 1, 3)
-        v = v.view(bs, v.size(1), self.n_heads, d_k).permute(0, 2, 1, 3)
-
-        # q, k, v = [rearrange(x, 'bs n (d h) -> bs h n d', h=self.n_heads) for x in [q,k,v]]
-        # q, k, v = q.contiguous(), k.contiguous(), v.contiguous()
+        q, k, v = [rearrange(x, 'bs n (h d) -> bs h n d', h=self.n_heads) for x in [q,k,v]]
 
         out = nn.functional.scaled_dot_product_attention(q, k, v,
                                                           attn_mask=attn_mask,
                                                           is_causal=self.is_causal,
                                                           dropout_p=self.dropout_level if self.training else 0)
         
-        out = out.permute(0, 2, 1, 3).contiguous().view(bs, seq_len, -1)
-        #out = rearrange(out, 'bs h n d -> bs n (d h)', h=self.n_heads)
+        out = rearrange(out, 'bs h n d -> bs n (h d)', h=self.n_heads)
 
         return out
 
