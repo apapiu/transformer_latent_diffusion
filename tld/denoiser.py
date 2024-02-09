@@ -79,6 +79,11 @@ class DenoiserTransBlock(nn.Module):
         for block in self.decoder_blocks:
             x = block(x, cond)
 
+        ## should I add another attention layer here at 1024 tokens?
+
+        #h/2*w/2, d -> d, h/2, w/2 -> upsample -> attenion block -> h*w, d -> h*w, 4 ->
+
+
         return self.out_proj(x)
 
 class Denoiser(nn.Module):
