@@ -171,54 +171,54 @@ class DataConfiguration:
 
 if __name__ == '__main__':
 
-use_wandb = False
+    use_wandb = False
 
-if use_wandb:
-    import wandb
-    os.environ["WANDB_API_KEY"]='key'
-    #!wandb login
+    if use_wandb:
+        import wandb
+        os.environ["WANDB_API_KEY"]='key'
+        #!wandb login
 
-data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
+    data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
 
-data_config = DataConfiguration(data_link=data_link, 
-                                latent_save_path='latent_folder',
-                                raw_imgs_save_path='raw_imgs_folder',
-                                download_data=False,
-                                number_sample_per_shard=1000
-                               )
+    data_config = DataConfiguration(data_link=data_link, 
+                                    latent_save_path='latent_folder',
+                                    raw_imgs_save_path='raw_imgs_folder',
+                                    download_data=False,
+                                    number_sample_per_shard=1000
+                                )
 
-if use_wandb:
-    wandb.init(project='image_vae_processing', entity='apapiu', config=data_config) if use_wandb
+    if use_wandb:
+        wandb.init(project='image_vae_processing', entity='apapiu', config=data_config) if use_wandb
 
 
-if not os.path.exists(data_config.latent_save_path):
-    os.mkdir(data_config.latent_save_path)
-    
-config_file_path = os.path.join(data_config.latent_save_path, 'config.json')
-with open(config_file_path, 'w') as f:
-    json.dump(data_config.__dict__, f)
+    if not os.path.exists(data_config.latent_save_path):
+        os.mkdir(data_config.latent_save_path)
+        
+    config_file_path = os.path.join(data_config.latent_save_path, 'config.json')
+    with open(config_file_path, 'w') as f:
+        json.dump(data_config.__dict__, f)
 
-print("Config saved to:", config_file_path)
+    print("Config saved to:", config_file_path)
 
-df = pd.read_parquet(data_link)
-###add additional data cleaning here...should I 
-df = df.iloc[:3000]
-df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
+    df = pd.read_parquet(data_link)
+    ###add additional data cleaning here...should I 
+    df = df.iloc[:3000]
+    df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
 
-if data_config.use_drive:
-    from google.colab import drive
-    drive.mount('/content/drive')
+    if data_config.use_drive:
+        from google.colab import drive
+        drive.mount('/content/drive')
 
-download_and_process_data(latent_save_path=data_config.latent_save_path,
-                        raw_imgs_save_path=data_config.raw_imgs_save_path,
-                        csv_path=data_config.initial_csv_path,
-                        image_size=data_config.image_size,
-                        bs=data_config.batch_size,
-                        caption_col=data_config.caption_col,
-                        url_col = data_config.url_col,
-                        download_data=data_config.download_data,
-                        number_sample_per_shard=data_config.number_sample_per_shard
-                      )
+    download_and_process_data(latent_save_path=data_config.latent_save_path,
+                            raw_imgs_save_path=data_config.raw_imgs_save_path,
+                            csv_path=data_config.initial_csv_path,
+                            image_size=data_config.image_size,
+                            bs=data_config.batch_size,
+                            caption_col=data_config.caption_col,
+                            url_col = data_config.url_col,
+                            download_data=data_config.download_data,
+                            number_sample_per_shard=data_config.number_sample_per_shard
+                        )
 
-if use_wandb:
-    wandb.finish()
+    if use_wandb:
+        wandb.finish()
