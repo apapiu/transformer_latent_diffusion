@@ -6,6 +6,10 @@
 import os
 import pandas as pd
 import numpy as np
+import h5py
+from dataclasses import dataclass
+import json
+
 
 import torch
 import torchvision.transforms as transforms
@@ -50,34 +54,47 @@ def dequantize_latents(lat, clip_val=20):
     lat_norm = (lat.to(torch.float16)/255)*2 - 1
     return lat_norm*clip_val
 
-def get_text_and_latent_embedings(dataloader, vae, model, drive_save_path):
-    """dataloader that outputs an img tensor and text_prompts"""
-    text_encodings = []
-    img_encodings = []
-    text_captions = []
+def append_to_dataset(dataset, new_data):
+    """Appends new data to an HDF5 dataset."""
+    new_size = dataset.shape[0] + new_data.shape[0]  
+    dataset.resize(new_size, axis=0)  
+    dataset[-new_data.shape[0]:] = new_data  
 
-    i = 0
-    for img, label in tqdm(dataloader):
+def get_text_and_latent_embeddings_hdf5(dataloader, vae, model, drive_save_path):
+    """Process img/text inptus that outputs an latent and text embeddings and text_prompts, saving encodings as float16."""
 
-        #encode text:
-        text_encodings.append(encode_text(label, model).cpu())
-        ##encode images:
-        img_encodings.append(encode_image(img, vae).cpu())
-        text_captions.extend(label)
+    img_latent_path = os.path.join(drive_save_path, 'image_latents.hdf5')
+    text_embed_path = os.path.join(drive_save_path, 'text_encodings.hdf5')
+    metadata_csv_path = os.path.join(drive_save_path, 'metadata.csv')
+    
+    with h5py.File(img_latent_path, 'a') as img_file, \
+         h5py.File(text_embed_path, 'a') as text_file:
 
-        if i%100 == 1:
-            print("Saving")
-            np.save(os.path.join(drive_save_path, 'image_latents.npy'), torch.cat(img_encodings).numpy())
-            np.save(os.path.join(drive_save_path, 'text_encodings.npy'), torch.cat(text_encodings).numpy())
-            np.save(os.path.join(drive_save_path, 'text_captions.npy'), np.array(text_captions))
-
-        i += 1
-
-    img_encodings = torch.cat(img_encodings)
-    text_encodings = torch.cat(text_encodings)
-    return img_encodings, text_encodings, text_captions
-
+        if 'image_latents' not in img_file:
+                img_ds = img_file.create_dataset('image_latents', shape=(0, 4, 32, 32),
+                                                 maxshape=(None, 4, 32, 32), dtype='float16', chunks=True)
+        else:
+            img_ds = img_file['image_latents']
+            
+        if 'text_encodings' not in text_file:
+            text_ds = text_file.create_dataset('text_encodings', shape=(0, 768), 
+                                           maxshape=(None, 768), dtype='float16', chunks=True)
+        else:
+            text_ds = text_file['text_encodings']
         
+        for img, (label, url) in tqdm(dataloader):
+            text_encoding = encode_text(label, model).cpu().numpy().astype(np.float16)
+            img_encoding = encode_image(img, vae).cpu().numpy().astype(np.float16)
+
+            append_to_dataset(img_ds, img_encoding)
+            append_to_dataset(text_ds, text_encoding)
+
+            metadata_df = pd.DataFrame({'text': label, 'url': url})
+            if os.path.exists(metadata_csv_path):
+                metadata_df.to_csv(metadata_csv_path, mode='a', header=False, index=False)
+            else:
+                metadata_df.to_csv(metadata_csv_path, mode='w', header=True, index=False)
+
         
 def download_and_process_data(latent_save_path='latents',
                               raw_imgs_save_path='raw_imgs',
@@ -90,8 +107,6 @@ def download_and_process_data(latent_save_path='latents',
                               number_sample_per_shard=10000,
                              ):
     
-    save_data = True
-
     if not os.path.exists(raw_imgs_save_path):
         os.mkdir(raw_imgs_save_path)
 
@@ -119,57 +134,91 @@ def download_and_process_data(latent_save_path='latents',
     files = os.listdir(raw_imgs_save_path)
     tar_files = [os.path.join(raw_imgs_save_path, file) for file in files if file.endswith('.tar')]
     print(tar_files)
-
     dataset = wds.WebDataset(tar_files)
 
     transform = transforms.Compose([
         transforms.ToTensor(),
     ])
 
-    dataset = dataset.decode("pil").to_tuple("jpg;png", "json").map_tuple(transform, lambda x: x["caption"])
+    #output is (img_tensor, (caption , url_col)) per batch:
+    dataset = dataset.decode("pil").to_tuple("jpg;png", "json").map_tuple(transform, lambda x: (x["caption"], x[url_col]))
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=False)
 
-    model, preprocess = clip.load("ViT-L/14")
+    model, _ = clip.load("ViT-L/14")
 
     vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
     vae = vae.to('cuda')
     model.to('cuda')
 
     print("Starting to encode latents and text:")
-    image_latents, text_encodings, text_captions = get_text_and_latent_embedings(dataloader, vae, model, latent_save_path)
+    get_text_and_latent_embeddings_hdf5(dataloader, vae, model, latent_save_path)
+    print("Finished encode latents and text:")
 
-    if save_data:
-        np.save(os.path.join(latent_save_path, 'image_latents.npy'), image_latents.numpy())
-        np.save(os.path.join(latent_save_path, 'text_encodings.npy'), text_encodings.numpy())
-        np.save(os.path.join(latent_save_path, 'text_captions.npy'), np.array(text_captions))
+@dataclass
+class DataConfiguration:
+    data_link: str 
+    caption_col: str = 'caption'
+    url_col: str = 'url'
+    latent_save_path: str = 'latents_folder' 
+    raw_imgs_save_path: str = 'raw_imgs_folder' 
+    use_drive: bool = False
+    initial_csv_path: str = 'imgs.csv'
+    number_sample_per_shard: int = 10000
+    image_size: int = 256
+    batch_size: int = 64
+    download_data: bool = True
 
 if __name__ == '__main__':
-    data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
-    df = pd.read_parquet(data_link)
-    ###add additional data cleaning here...
-    df = df.iloc[:2000]
-    df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
 
+use_wandb = False
 
-    caption_col = 'text' 
-    url_col = 'url'
-    latent_save_path = 'latents' #could also be a path to google drive for persisting the data
-    raw_imgs_save_path = 'raw_imgs' #raw imgs are not needed for training so they can be deleted once done
-    use_drive = False
+if use_wandb:
+    import wandb
+    os.environ["WANDB_API_KEY"]='key'
+    #!wandb login
 
-    if use_drive:
-        from google.colab import drive
-        drive.mount('/content/drive')
+data_link = 'https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true'
 
-
-    download_and_process_data(latent_save_path=latent_save_path,
-                                raw_imgs_save_path=raw_imgs_save_path,
-                                csv_path='imgs.csv',
-                                image_size=256,
-                                bs=64,
-                                caption_col=caption_col,
-                                url_col = url_col,
-                                download_data=True,
+data_config = DataConfiguration(data_link=data_link, 
+                                latent_save_path='latent_folder',
+                                raw_imgs_save_path='raw_imgs_folder',
+                                download_data=False,
                                 number_sample_per_shard=1000
-                            )
+                               )
+
+if use_wandb:
+    wandb.init(project='image_vae_processing', entity='apapiu', config=data_config) if use_wandb
+
+
+if not os.path.exists(data_config.latent_save_path):
+    os.mkdir(data_config.latent_save_path)
+    
+config_file_path = os.path.join(data_config.latent_save_path, 'config.json')
+with open(config_file_path, 'w') as f:
+    json.dump(data_config.__dict__, f)
+
+print("Config saved to:", config_file_path)
+
+df = pd.read_parquet(data_link)
+###add additional data cleaning here...should I 
+df = df.iloc[:3000]
+df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
+
+if data_config.use_drive:
+    from google.colab import drive
+    drive.mount('/content/drive')
+
+download_and_process_data(latent_save_path=data_config.latent_save_path,
+                        raw_imgs_save_path=data_config.raw_imgs_save_path,
+                        csv_path=data_config.initial_csv_path,
+                        image_size=data_config.image_size,
+                        bs=data_config.batch_size,
+                        caption_col=data_config.caption_col,
+                        url_col = data_config.url_col,
+                        download_data=data_config.download_data,
+                        number_sample_per_shard=data_config.number_sample_per_shard
+                      )
+
+if use_wandb:
+    wandb.finish()
