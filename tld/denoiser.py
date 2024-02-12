@@ -20,7 +20,18 @@ class DenoiserTransBlock(nn.Module):
         self.mlp_multiplier = mlp_multiplier
 
         seq_len = int((self.img_size/self.patch_size)*((self.img_size/self.patch_size)))
+        self.seq_len = seq_len
         patch_dim = self.n_channels*self.patch_size*self.patch_size
+
+
+        self.pos_enc_down_sampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=seq_len, w=seq_len),
+                                                   nn.AvgPool2d(kernel_size=2), 
+                                                   Rearrange('bs d h w -> bs (h w) d'))
+        
+        self.pos_enc_upsampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=seq_len, w=seq_len),
+                                                   nn.Upsample(size=2, mode='bicubic'), 
+                                                   Rearrange('bs d h w -> bs (h w) d'))
+
 
         self.patchify_and_embed = nn.Sequential(
                                        nn.Conv2d(self.n_channels, patch_dim, kernel_size=self.patch_size, stride=self.patch_size),
@@ -53,8 +64,17 @@ class DenoiserTransBlock(nn.Module):
 
     def forward(self, x, cond):
         x = self.patchify_and_embed(x)
-        pos_enc = self.precomputed_pos_enc[:x.size(1)].expand(x.size(0), -1)
-        x = x+self.pos_embed(pos_enc)
+        #pos_enc = self.precomputed_pos_enc[:x.size(1)].expand(x.size(0), -1)
+        pos_enc = self.precomputed_pos_enc.expand(x.size(0), -1) ##bs, 256, embed_dim 
+
+        if self.seq_len > x.size(1):
+            ##-> embed_dim, 16, 16 -> down/upsample:
+            #downsample_size = self.seq_len//x.size(1)    
+            pos_enc = self.pos_enc_down_sampling(pos_enc)
+        elif self.seq_len < x.size(1):
+            pos_enc = self.pos_enc_upsampling(pos_enc)
+            
+        x = x+self.pos_embed(pos_enc) 
 
         for block in self.decoder_blocks:
             x = block(x, cond)
