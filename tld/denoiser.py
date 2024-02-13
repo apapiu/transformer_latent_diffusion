@@ -27,11 +27,11 @@ class DenoiserTransBlock(nn.Module):
 
 
         self.pos_enc_down_sampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=lat_h, w=lat_w),
-                                                   nn.AvgPool2d(kernel_size=self.upscale_factor),
+                                                   nn.AvgPool2d(kernel_size=self.scale_factor),
                                                    Rearrange('bs d h w -> bs (h w) d'))
         
         self.pos_enc_upsampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=lat_h, w=lat_w),
-                                                   nn.Upsample(scale_factor=self.upscale_factor, mode='bicubic'),
+                                                   nn.Upsample(scale_factor=self.scale_factor, mode='bicubic'),
                                                    Rearrange('bs d h w -> bs (h w) d'))
 
 
