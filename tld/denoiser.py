@@ -8,28 +8,30 @@ from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 
 
 class DenoiserTransBlock(nn.Module):
-    def __init__(self, patch_size, img_size, embed_dim, dropout, n_layers, mlp_multiplier=4, n_channels=4):
+    def __init__(self, patch_size, img_size, embed_dim, dropout, n_layers, mlp_multiplier=4, n_channels=4, scale_factor=2):
         super().__init__()
 
         self.patch_size = patch_size
-        self.img_size = img_size
+        self.img_size = img_size ##size the model was trained on -> output is this * scale factor
         self.n_channels = n_channels
         self.embed_dim = embed_dim
         self.dropout = dropout
         self.n_layers = n_layers
         self.mlp_multiplier = mlp_multiplier
+        self.scale_factor = scale_factor
 
         seq_len = int((self.img_size/self.patch_size)*((self.img_size/self.patch_size)))
+        lat_h = lat_w = int(self.img_size/self.patch_size)
         self.seq_len = seq_len
         patch_dim = self.n_channels*self.patch_size*self.patch_size
 
 
-        self.pos_enc_down_sampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=seq_len, w=seq_len),
-                                                   nn.AvgPool2d(kernel_size=2), 
+        self.pos_enc_down_sampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=lat_h, w=lat_w),
+                                                   nn.AvgPool2d(kernel_size=self.upscale_factor),
                                                    Rearrange('bs d h w -> bs (h w) d'))
         
-        self.pos_enc_upsampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=seq_len, w=seq_len),
-                                                   nn.Upsample(size=2, mode='bicubic'), 
+        self.pos_enc_upsampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=lat_h, w=lat_w),
+                                                   nn.Upsample(scale_factor=self.upscale_factor, mode='bicubic'),
                                                    Rearrange('bs d h w -> bs (h w) d'))
 
 
@@ -42,7 +44,8 @@ class DenoiserTransBlock(nn.Module):
                                        )
 
         self.rearrange2 = Rearrange('b (h w) (c p1 p2) -> b c (h p1) (w p2)',
-                                   h=int(self.img_size/self.patch_size),
+                                   h=int(self.img_size/self.patch_size)*self.scale_factor,
+                                   w=int(self.img_size/self.patch_size)*self.scale_factor,
                                    p1=self.patch_size, p2=self.patch_size)
 
 
@@ -65,7 +68,8 @@ class DenoiserTransBlock(nn.Module):
     def forward(self, x, cond):
         x = self.patchify_and_embed(x)
         #pos_enc = self.precomputed_pos_enc[:x.size(1)].expand(x.size(0), -1)
-        pos_enc = self.precomputed_pos_enc.expand(x.size(0), -1) ##bs, 256, embed_dim 
+        pos_enc = self.precomputed_pos_enc.expand(x.size(0), -1) 
+        pos_enc = self.pos_embed(pos_enc) ##bs, 256, embed_dim 
 
         if self.seq_len > x.size(1):
             ##-> embed_dim, 16, 16 -> down/upsample:
@@ -74,7 +78,7 @@ class DenoiserTransBlock(nn.Module):
         elif self.seq_len < x.size(1):
             pos_enc = self.pos_enc_upsampling(pos_enc)
             
-        x = x+self.pos_embed(pos_enc) 
+        x = x+pos_enc
 
         for block in self.decoder_blocks:
             x = block(x, cond)
