@@ -24,17 +24,17 @@ from tld.diffusion import DiffusionGenerator
 def eval_gen(diffuser, labels):
     class_guidance=4.5
     seed=10
-    out, _ = diffuser.generate(labels=torch.repeat_interleave(labels, 8, dim=0),
-                                        num_imgs=64,
+    out, _ = diffuser.generate(labels=torch.repeat_interleave(labels, 4, dim=0),
+                                        num_imgs=32,
                                         class_guidance=class_guidance,
                                         seed=seed,
                                         img_size=64, ###hardcode bad
-                                        n_iter=40,
+                                        n_iter=20,
                                         exponent=1,
                                         sharp_f=0.1,
                                         )
 
-    out = to_pil((vutils.make_grid((out+1)/2, nrow=8, padding=4)).float().clip(0, 1))
+    out = to_pil((vutils.make_grid((out+1)/2, nrow=4, padding=4)).float().clip(0, 1))
     out.save(f'emb_val_cfg:{class_guidance}_seed:{seed}.png')
 
     return out
