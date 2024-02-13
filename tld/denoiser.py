@@ -31,7 +31,7 @@ class DenoiserTransBlock(nn.Module):
                                                    Rearrange('bs d h w -> bs (h w) d'))
         
         self.pos_enc_upsampling = nn.Sequential(Rearrange('bs (h w) d -> bs d h w', h=lat_h, w=lat_w),
-                                                   nn.Upsample(scale_factor=self.scale_factor, mode='bicubic'),
+                                                   nn.Upsample(scale_factor=self.scale_factor, mode='bilinear'),
                                                    Rearrange('bs d h w -> bs (h w) d'))
 
 
