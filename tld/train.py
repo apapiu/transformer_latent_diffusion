@@ -28,6 +28,7 @@ def eval_gen(diffuser, labels):
                                         num_imgs=64,
                                         class_guidance=class_guidance,
                                         seed=seed,
+                                        img_size=64, ###hardcode bad
                                         n_iter=40,
                                         exponent=1,
                                         sharp_f=0.1,
@@ -109,6 +110,9 @@ def main(config: ModelConfig, dataconfig: DataConfig):
     
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
+    accelerator.print("Compiling model:")
+    model = torch.compile(model)
 
     if not config.from_scratch:
         accelerator.print("Loading Model:")
