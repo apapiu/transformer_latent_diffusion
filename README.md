@@ -20,9 +20,11 @@ a cute great gray owl → starry night by van gogh:
 Note that the model has not converged yet and could use more training. 
 
 #### High(er) Resolution: 
-By upsampling the positional encoding the model can also generate 512 by 512 images (and above) without additional training. However they tend to lose global coherenece. Working on finetuning - more to come: 
+By upsampling the positional encoding the model can also generate 512 or 1024 px images with minimal fine-tuning. See below for some examples of model fine-tuned on 100k extra 512 px images and 30k 1024 px images for about 2 hours on an A100. The images do sometimes lack global coherence at 1024 px - more to come here:
 
-<img width="900" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/56083cd0-d516-4ad4-b7e3-6815ea0e29a2">
+<img width="600" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/adba64f0-b43c-423e-9a7d-033a4afea207">
+<img width="600" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/5a94515b-313e-420d-89d4-6bdc376d9a00">
+
 
 
 ### Intro: 
