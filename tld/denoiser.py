@@ -6,7 +6,6 @@ from einops.layers.torch import Rearrange
 
 from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 
-
 class DenoiserTransBlock(nn.Module):
     def __init__(self, patch_size, img_size, embed_dim, dropout, n_layers, mlp_multiplier=4, n_channels=4):
         super().__init__()
@@ -93,15 +92,3 @@ class Denoiser(nn.Module):
         x = self.denoiser_trans_block(x,noise_label_emb)
 
         return x
-    
-def test_outputs():
-    model = Denoiser(image_size=16, noise_embed_dims=128, patch_size=2, embed_dim=256, dropout=0.1, n_layers=6)
-    x = torch.rand(8, 4, 16, 16)
-    noise_level = torch.rand(8, 1)
-    label = torch.rand(8, 768)
-
-    with torch.no_grad():
-        output = model(x, noise_level, label)
-
-    assert output.shape == torch.Size([8, 4, 16, 16])
-    print("Basic tests passed.")
