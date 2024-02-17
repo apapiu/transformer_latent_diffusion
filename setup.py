@@ -26,6 +26,8 @@ setup(
         'torchvision',
         'tqdm',
         'diffusers',
+        'accelerate',
+        'transformers',
         'Pillow',
         'clip @ git+https://github.com/openai/CLIP.git',
     ],

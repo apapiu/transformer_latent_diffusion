@@ -4,5 +4,7 @@ einops
 torchvision
 tqdm
 diffusers
+accelerate
+transformers
 Pillow
 git+https://github.com/openai/CLIP.git
