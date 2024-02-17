@@ -1,0 +1,9 @@
+###for inference only:
+torch
+numpy
+einops
+torchvision
+tqdm
+diffusers
+Pillow
+git+https://github.com/openai/CLIP.git
