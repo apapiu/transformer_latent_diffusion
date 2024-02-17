@@ -1,8 +1,9 @@
 from setuptools import setup, find_packages
 
 def load_requirements(filename='requirements.txt'):
-    with open(filename, 'r') as f:
-        return f.read().splitlines()
+    with open(filename, 'r') as file:
+        lines = [line.strip() for line in file.readlines() if line.strip() and not line.startswith('#')]
+    return lines
 
 setup(
     name="ltd",
@@ -18,5 +19,14 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.6",
-    install_requires=load_requirements(),
+    install_requires=[
+        'torch',
+        'numpy',
+        'einops',
+        'torchvision',
+        'tqdm',
+        'diffusers',
+        'Pillow',
+        'clip @ git+https://github.com/openai/CLIP.git',
+    ],
 )

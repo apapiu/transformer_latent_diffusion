@@ -1,4 +1,3 @@
-###for inference only:
 torch
 numpy
 einops
