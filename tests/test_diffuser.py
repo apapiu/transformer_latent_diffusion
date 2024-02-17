@@ -48,12 +48,14 @@ def test_outputs(num_imgs = 4):
 
 def test_diffusion_generator():
 
-    model_dtype = torch.float32
+    model_dtype = torch.float32 ##float 16 will not work on cpu
     num_imgs = 1
     nrow = int(np.sqrt(num_imgs))
 
     denoiser = Denoiser(image_size=32, noise_embed_dims=128, patch_size=2, embed_dim=256, dropout=0.1, n_layers=3)
     print(f"Model has {sum(p.numel() for p in denoiser.parameters())} parameters")
+    
+    denoiser.to(model_dtype)
 
     vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix",
                                         torch_dtype=model_dtype).to(device)
@@ -62,7 +64,7 @@ def test_diffusion_generator():
 
     diffuser = DiffusionGenerator(denoiser, vae, device, model_dtype)
 
-    out, out_latent = diffuser.generate(labels=labels,
+    out, _ = diffuser.generate(labels=labels,
                                     num_imgs=num_imgs,
                                     class_guidance=3,
                                     seed=1,
@@ -77,4 +79,4 @@ def test_diffusion_generator():
     out.save(f'test.png')
     print("Images generated at test.png")
 
-##add test for train loop?
+# TODO: should add tests for train loop and data processing
