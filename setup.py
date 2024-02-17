@@ -6,7 +6,7 @@ def load_requirements(filename='requirements.txt'):
     return lines
 
 setup(
-    name="ltd",
+    name="tld",
     version="0.1.0",
     author="Alexandru Papiu",
     author_email="alex.papiu@gmail.com",
