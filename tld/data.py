@@ -188,7 +188,7 @@ if __name__ == '__main__':
                                 )
 
     if use_wandb:
-        wandb.init(project='image_vae_processing', entity='apapiu', config=data_config) if use_wandb
+        wandb.init(project='image_vae_processing', entity='apapiu', config=data_config)
 
 
     if not os.path.exists(data_config.latent_save_path):
