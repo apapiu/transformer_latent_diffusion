@@ -102,14 +102,14 @@ class DecoderBlock(nn.Module):
     def __init__(self, embed_dim, is_causal, mlp_multiplier, dropout_level, mlp_class=MLP):
         super().__init__()
         self.self_attention = SelfAttention(embed_dim, is_causal, dropout_level, n_heads=embed_dim//64)
-        self.cross_attention = CrossAttention(embed_dim, is_causal=False, dropout_level=0, n_heads=4)
         self.mlp = mlp_class(embed_dim, mlp_multiplier, dropout_level)
         self.norm1 = nn.LayerNorm(embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
-        self.norm3 = nn.LayerNorm(embed_dim)
+        self.proj = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, x, y):
+
+        x = self.proj(x) + y
         x = self.norm1(self.self_attention(x) + x)
-        x = self.norm2(self.cross_attention(x, y) + x)
-        x = self.norm3(self.mlp(x) + x)
+        x = self.norm2(self.mlp(x) + x)
         return x

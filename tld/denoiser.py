@@ -86,7 +86,7 @@ class Denoiser(nn.Module):
 
         label = self.label_proj(label).unsqueeze(1)
 
-        noise_label_emb = torch.cat([noise_level, label], dim=1) #bs, 2, d
+        noise_label_emb = noise_level + label #bs, 1, d
         noise_label_emb = self.norm(noise_label_emb)
 
         x = self.denoiser_trans_block(x,noise_label_emb)
