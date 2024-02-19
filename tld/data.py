@@ -24,8 +24,8 @@ from diffusers import AutoencoderKL
 
 
 @torch.no_grad()
-def encode_text(label, model):
-    text_tokens = clip.tokenize(label, truncate=True).cuda()
+def encode_text(label, model, device):
+    text_tokens = clip.tokenize(label, truncate=True).to(device)
     text_encoding = model.encode_text(text_tokens)
     return text_encoding.cpu()
 
