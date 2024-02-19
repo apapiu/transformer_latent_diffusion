@@ -31,7 +31,6 @@ class MHAttention(nn.Module):
         assert k.size(-2) == v.size(-2)
 
         q, k, v = [rearrange(x, 'bs n (h d) -> bs h n d', h=self.n_heads) for x in [q,k,v]]
-        #q, k, v = q.contiguous(), k.contiguous(), v.contiguous()
 
         out = nn.functional.scaled_dot_product_attention(q, k, v,
                                                           attn_mask=attn_mask,
@@ -45,7 +44,7 @@ class MHAttention(nn.Module):
 class SelfAttention(nn.Module):
     def __init__(self, embed_dim, is_causal=False, dropout_level=0, n_heads=4):
         super().__init__()
-        self.qkv_linear = nn.Linear(embed_dim, 3*embed_dim, bias=False)
+        self.qkv_linear = nn.Linear(2*embed_dim, 3*embed_dim, bias=False)
         self.mha = MHAttention(is_causal, dropout_level, n_heads)
 
     def forward(self, x):
@@ -103,14 +102,16 @@ class DecoderBlock(nn.Module):
         super().__init__()
         self.self_attention = SelfAttention(embed_dim, is_causal, dropout_level, n_heads=embed_dim//64)
         self.mlp = mlp_class(embed_dim, mlp_multiplier, dropout_level)
-        self.norm1 = nn.LayerNorm(embed_dim)
+        self.norm1 = nn.LayerNorm(2*embed_dim)
         self.norm2 = nn.LayerNorm(embed_dim)
-        self.proj = nn.Linear(embed_dim, embed_dim)
-        self.proj2 = nn.Linear(embed_dim, embed_dim)
+        self.proj = nn.Linear(2*embed_dim, embed_dim)
+        #self.proj2 = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, x, y):
 
-        x = self.proj(x) + self.proj2(y)
-        x = self.self_attention(self.norm1(x)) + x
+        #x = self.proj(x) + self.proj2(y)
+        y = y.repeat(1, x.size(1), 1)
+        x = torch.cat([x,y], dim=-1) #bs, n, 2*d
+        x = self.self_attention(self.norm1(x)) + self.proj(x)
         x = self.mlp(self.norm2(x)) + x
         return x
