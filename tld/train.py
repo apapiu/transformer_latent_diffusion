@@ -110,6 +110,9 @@ def main(config: ModelConfig, dataconfig: DataConfig):
     loss_fn = nn.MSELoss()
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
+    accelerator.print("Compiling model:")
+    model = torch.compile(model)
+
     if not config.from_scratch:
         accelerator.print("Loading Model:")
         wandb.restore(config.model_name, run_path=f"apapiu/cifar_diffusion/runs/{config.run_id}",
