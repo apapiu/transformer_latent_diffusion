@@ -70,7 +70,7 @@ class DiffusionGenerator:
         x0_pred[:, 3, :, :] += sharp_f
         x0_pred[:, 0, :, :] += bright_f
 
-        x0_pred_img = self.vae.decode((x0_pred*scale_factor).half())[0].cpu()
+        x0_pred_img = self.vae.decode((x0_pred*scale_factor).to(self.model_dtype))[0].cpu()
         return x0_pred_img, x0_pred
 
     def pred_image(self, noisy_image, labels, noise_level, class_guidance):
