@@ -18,14 +18,22 @@ class DenoiserTransBlock(nn.Module):
         self.n_layers = n_layers
         self.mlp_multiplier = mlp_multiplier
 
-        seq_len = int((self.img_size/self.patch_size)*((self.img_size/self.patch_size)))
+        seq_len = img_size**2#int((self.img_size/self.patch_size)*((self.img_size/self.patch_size)))
         patch_dim = self.n_channels*self.patch_size*self.patch_size
 
+        self.first_proj = nn.Sequential(Rearrange('bs d h w -> bs (h w) d'),
+                                        nn.Linear(n_channels, self.embed_dim//4),
+                                        nn.LayerNorm(self.embed_dim//4),
+                                        )
+        
+        self.cond_proj = nn.Linear(self.embed_dim, self.embed_dim//4)
+
         self.patchify_and_embed = nn.Sequential(
-                                       nn.Conv2d(self.n_channels, patch_dim, kernel_size=self.patch_size, stride=self.patch_size),
+                                       Rearrange('bs (h w) d ->bs d h w', h = self.img_size),
+                                       nn.Conv2d(self.embed_dim//4, self.embed_dim, kernel_size=self.patch_size, stride=self.patch_size),
                                        Rearrange('bs d h w -> bs (h w) d'),
-                                       nn.LayerNorm(patch_dim),
-                                       nn.Linear(patch_dim, self.embed_dim),
+                                       nn.LayerNorm(self.embed_dim),
+                                       nn.Linear(self.embed_dim, self.embed_dim),
                                        nn.LayerNorm(self.embed_dim)
                                        )
 
@@ -34,8 +42,14 @@ class DenoiserTransBlock(nn.Module):
                                    p1=self.patch_size, p2=self.patch_size)
 
 
-        self.pos_embed = nn.Embedding(seq_len, self.embed_dim)
+        self.pos_embed = nn.Embedding(seq_len, self.embed_dim//4)
         self.register_buffer('precomputed_pos_enc', torch.arange(0, seq_len).long())
+
+        self.first_decoder_block = DecoderBlock(embed_dim=self.embed_dim//4, ##aplied on priginal image
+                                            mlp_multiplier=self.mlp_multiplier,
+                                            is_causal=False,
+                                            dropout_level=self.dropout,
+                                            mlp_class=MLPSepConv)
 
         self.decoder_blocks = nn.ModuleList([DecoderBlock(embed_dim=self.embed_dim,
                                             mlp_multiplier=self.mlp_multiplier,
@@ -51,12 +65,23 @@ class DenoiserTransBlock(nn.Module):
 
 
     def forward(self, x, cond):
-        x = self.patchify_and_embed(x)
+        x = self.first_proj(x) ### 4,h,w -> h*w, 4 -> h*w, d/4
+
         pos_enc = self.precomputed_pos_enc[:x.size(1)].expand(x.size(0), -1)
         x = x+self.pos_embed(pos_enc)
 
+        ##have to project cond:
+        cond_projected = self.cond_proj(cond)
+        x = self.first_decoder_block(x, cond_projected) ###same dim as original data in and out.
+        x = self.patchify_and_embed(x) ## h*w, d/4 -> d/4, h, w -> h/2*w/2, d
+
         for block in self.decoder_blocks:
             x = block(x, cond)
+
+        ## should I add another attention layer here at 1024 tokens?
+
+        #h/2*w/2, d -> d, h/2, w/2 -> upsample -> attenion block -> h*w, d -> h*w, 4 ->
+
 
         return self.out_proj(x)
 
