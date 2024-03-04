@@ -1,9 +1,11 @@
 from setuptools import setup, find_packages
 
-def load_requirements(filename='requirements.txt'):
-    with open(filename, 'r') as file:
-        lines = [line.strip() for line in file.readlines() if line.strip() and not line.startswith('#')]
+
+def load_requirements(filename="requirements.txt"):
+    with open(filename, "r") as file:
+        lines = [line.strip() for line in file.readlines() if line.strip() and not line.startswith("#")]
     return lines
+
 
 setup(
     name="tld",
@@ -20,15 +22,15 @@ setup(
     ],
     python_requires=">=3.6",
     install_requires=[
-        'torch',
-        'numpy',
-        'einops',
-        'torchvision',
-        'tqdm',
-        'diffusers',
-        'accelerate',
-        'transformers',
-        'Pillow',
-        'clip @ git+https://github.com/openai/CLIP.git',
+        "torch",
+        "numpy",
+        "einops",
+        "torchvision",
+        "tqdm",
+        "diffusers",
+        "accelerate",
+        "transformers",
+        "Pillow",
+        "clip @ git+https://github.com/openai/CLIP.git",
     ],
 )

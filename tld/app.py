@@ -7,14 +7,11 @@ import requests
 import torch
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-from diffusers import AutoencoderKL, AutoencoderTiny
-from fastapi import Depends, FastAPI, HTTPException, Security, status
+from diffusers import AutoencoderKL
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
-from PIL import Image
 from pydantic import BaseModel
-from torch.utils.data import DataLoader, TensorDataset
-from tqdm import tqdm
 
 from tld.denoiser import Denoiser
 from tld.diffusion import DiffusionGenerator
