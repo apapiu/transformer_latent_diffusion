@@ -1,6 +1,6 @@
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
 from einops import rearrange
 
 
@@ -22,7 +22,7 @@ class SinusoidalEmbedding(nn.Module):
 
 
 class MHAttention(nn.Module):
-    def __init__(self, is_causal=False, dropout_level=0, n_heads=4):
+    def __init__(self, is_causal=False, dropout_level=0.0, n_heads=4):
         super().__init__()
         self.is_causal = is_causal
         self.dropout_level = dropout_level
@@ -49,7 +49,7 @@ class MHAttention(nn.Module):
 
 
 class SelfAttention(nn.Module):
-    def __init__(self, embed_dim, is_causal=False, dropout_level=0, n_heads=4):
+    def __init__(self, embed_dim, is_causal=False, dropout_level=0.0, n_heads=4):
         super().__init__()
         self.qkv_linear = nn.Linear(embed_dim, 3 * embed_dim, bias=False)
         self.mha = MHAttention(is_causal, dropout_level, n_heads)
@@ -114,7 +114,14 @@ class MLPSepConv(nn.Module):
 
 
 class DecoderBlock(nn.Module):
-    def __init__(self, embed_dim, is_causal, mlp_multiplier, dropout_level, mlp_class=MLP):
+    def __init__(
+        self,
+        embed_dim: int,
+        is_causal: bool,
+        mlp_multiplier: int,
+        dropout_level: float,
+        mlp_class: type[MLP] | type[MLPSepConv],
+    ):
         super().__init__()
         self.self_attention = SelfAttention(embed_dim, is_causal, dropout_level, n_heads=embed_dim // 64)
         self.cross_attention = CrossAttention(
@@ -125,7 +132,7 @@ class DecoderBlock(nn.Module):
         self.norm2 = nn.LayerNorm(embed_dim)
         self.norm3 = nn.LayerNorm(embed_dim)
 
-    def forward(self, x, y):
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         x = self.self_attention(self.norm1(x)) + x
         x = self.cross_attention(self.norm2(x), y) + x
         x = self.mlp(self.norm3(x)) + x

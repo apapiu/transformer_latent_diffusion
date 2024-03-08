@@ -1,31 +1,37 @@
-import torch
+from dataclasses import dataclass
+
 import numpy as np
+import torch
+from diffusers import AutoencoderKL
+from torch import Tensor
 from tqdm import tqdm
 
+from tld.denoiser import Denoiser
 
+
+@dataclass
 class DiffusionGenerator:
-    def __init__(self, model, vae, device, model_dtype=torch.float32):
-        self.model = model
-        self.vae = vae
-        self.device = device
-        self.model_dtype = model_dtype
+    model: Denoiser
+    vae: AutoencoderKL
+    device: str
+    model_dtype: torch.dtype = torch.float32
 
     @torch.no_grad()
     def generate(
         self,
-        n_iter=30,
-        labels=None,  # embeddings to condition on
-        num_imgs=16,
-        class_guidance=3,
-        seed=10,  # for reproducibility
-        scale_factor=8,  # latent scaling before decoding - should be ~ std of latent space
-        img_size=32,  # height, width of latent
-        sharp_f=0.1,
-        bright_f=0.1,
-        exponent=1,
-        seeds=None,
+        labels: Tensor,  # embeddings to condition on
+        n_iter: int = 30,
+        num_imgs: int = 16,
+        class_guidance: float = 3,
+        seed: int = 10,
+        scale_factor: int = 8,  # latent scaling before decoding - should be ~ std of latent space
+        img_size: int = 32,  # height, width of latent
+        sharp_f: float = 0.1,
+        bright_f: float = 0.1,
+        exponent: float = 1,
+        seeds: Tensor | None = None,
         noise_levels=None,
-        use_ddpm_plus=True,
+        use_ddpm_plus: bool = True,
     ):
         """Generate images via reverse diffusion.
         if use_ddpm_plus=True uses Algorithm 2 DPM-Solver++(2M) here: https://arxiv.org/pdf/2211.01095.pdf

@@ -1,8 +1,8 @@
 """transformer based denoiser"""
 
 import torch
-from torch import nn
 from einops.layers.torch import Rearrange
+from torch import nn
 
 from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 
@@ -10,13 +10,13 @@ from tld.transformer_blocks import DecoderBlock, MLPSepConv, SinusoidalEmbedding
 class DenoiserTransBlock(nn.Module):
     def __init__(
         self,
-        patch_size,
-        img_size,
-        embed_dim,
-        dropout,
-        n_layers,
-        mlp_multiplier=4,
-        n_channels=4,
+        patch_size: int,
+        img_size: int,
+        embed_dim: int,
+        dropout: float,
+        n_layers: int,
+        mlp_multiplier: int = 4,
+        n_channels: int = 4,
     ):
         super().__init__()
 
@@ -85,13 +85,13 @@ class DenoiserTransBlock(nn.Module):
 class Denoiser(nn.Module):
     def __init__(
         self,
-        image_size,
-        noise_embed_dims,
-        patch_size,
-        embed_dim,
-        dropout,
-        n_layers,
-        text_emb_size=768,
+        image_size: int,
+        noise_embed_dims: int,
+        patch_size: int,
+        embed_dim: int,
+        dropout: float,
+        n_layers: int,
+        text_emb_size: int = 768,
     ):
         super().__init__()
 
