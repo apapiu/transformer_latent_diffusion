@@ -10,7 +10,8 @@ import torchvision.utils as vutils
 import wandb
 from accelerate import Accelerator
 from diffusers import AutoencoderKL
-from torch import nn
+from PIL.Image import Image
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, TensorDataset
 from tqdm import tqdm
 
@@ -18,7 +19,7 @@ from tld.denoiser import Denoiser
 from tld.diffusion import DiffusionGenerator
 
 
-def eval_gen(diffuser, labels):
+def eval_gen(diffuser: DiffusionGenerator, labels: Tensor) -> Image:
     class_guidance = 4.5
     seed = 10
     out, _ = diffuser.generate(
@@ -37,11 +38,11 @@ def eval_gen(diffuser, labels):
     return out
 
 
-def count_parameters(model):
+def count_parameters(model: nn.Module):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def count_parameters_per_layer(model):
+def count_parameters_per_layer(model: nn.Module):
     for name, param in model.named_parameters():
         print(f"{name}: {param.numel()} parameters")
 
@@ -49,7 +50,7 @@ def count_parameters_per_layer(model):
 to_pil = torchvision.transforms.ToPILImage()
 
 
-def update_ema(ema_model, model, alpha=0.999):
+def update_ema(ema_model: nn.Module, model: nn.Module, alpha: float = 0.999):
     with torch.no_grad():
         for ema_param, model_param in zip(ema_model.parameters(), model.parameters()):
             ema_param.data.mul_(alpha).add_(model_param.data, alpha=1 - alpha)
@@ -74,8 +75,8 @@ class ModelConfig:
     noise_embed_dims: int = 128
     diffusion_n_iter: int = 35
     from_scratch: bool = True
-    run_id: str = None
-    model_name: str = None
+    run_id: str = ""
+    model_name: str = ""
     beta_a: float = 0.75
     beta_b: float = 0.75
     save_and_eval_every_iters: int = 1000
@@ -88,7 +89,7 @@ class DataConfig:
     val_path: str
 
 
-def main(config: ModelConfig, dataconfig: DataConfig):
+def main(config: ModelConfig, dataconfig: DataConfig) -> None:
     """main train loop to be used with accelerate"""
 
     accelerator = Accelerator(mixed_precision="fp16", log_with="wandb")

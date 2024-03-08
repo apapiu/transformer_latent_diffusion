@@ -6,6 +6,7 @@
 import json
 import os
 from dataclasses import dataclass
+from typing import List, Union
 
 import clip
 import h5py
@@ -16,18 +17,20 @@ import torchvision.transforms as transforms
 import webdataset as wds
 from diffusers import AutoencoderKL
 from img2dataset import download
+from torch import Tensor, nn
+from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 
 @torch.no_grad()
-def encode_text(label, model, device):
+def encode_text(label: Union[str, List[str]], model: nn.Module, device: str) -> Tensor:
     text_tokens = clip.tokenize(label, truncate=True).to(device)
     text_encoding = model.encode_text(text_tokens)
     return text_encoding.cpu()
 
 
 @torch.no_grad()
-def encode_image(img, vae):
+def encode_image(img: Tensor, vae: AutoencoderKL) -> Tensor:
     x = img.to("cuda").to(torch.float16)
 
     x = x * 2 - 1  # to make it between -1 and 1.
@@ -36,32 +39,34 @@ def encode_image(img, vae):
 
 
 @torch.no_grad()
-def decode_latents(out_latents, vae):
+def decode_latents(out_latents: Tensor, vae: AutoencoderKL) -> Tensor:
     # expected to be in the unscaled latent space
     out = vae.decode(out_latents.cuda())[0].cpu()
 
     return ((out + 1) / 2).clip(0, 1)
 
 
-def quantize_latents(lat, clip_val=20):
+def quantize_latents(lat: Tensor, clip_val: float = 20) -> Tensor:
     """scale and quantize latents to unit8"""
     lat_norm = lat.clip(-clip_val, clip_val) / clip_val
     return (((lat_norm + 1) / 2) * 255).to(torch.uint8)
 
 
-def dequantize_latents(lat, clip_val=20):
+def dequantize_latents(lat: Tensor, clip_val: float = 20) -> Tensor:
     lat_norm = (lat.to(torch.float16) / 255) * 2 - 1
     return lat_norm * clip_val
 
 
-def append_to_dataset(dataset, new_data):
+def append_to_dataset(dataset: h5py.File, new_data: Tensor) -> None:
     """Appends new data to an HDF5 dataset."""
     new_size = dataset.shape[0] + new_data.shape[0]
     dataset.resize(new_size, axis=0)
     dataset[-new_data.shape[0] :] = new_data
 
 
-def get_text_and_latent_embeddings_hdf5(dataloader, vae, model, drive_save_path):
+def get_text_and_latent_embeddings_hdf5(
+    dataloader: DataLoader, vae: AutoencoderKL, model: nn.Module, drive_save_path: str
+) -> None:
     """Process img/text inptus that outputs an latent and text embeddings and text_prompts, saving encodings as float16."""
 
     img_latent_path = os.path.join(drive_save_path, "image_latents.hdf5")
@@ -153,7 +158,7 @@ def download_and_process_data(
         .map_tuple(transform, lambda x: (x["caption"], x[url_col]))
     )
 
-    dataloader = torch.utils.data.DataLoader(dataset, batch_size=bs, shuffle=False)
+    dataloader = DataLoader(dataset, batch_size=bs, shuffle=False)
 
     model, _ = clip.load("ViT-L/14")
 
