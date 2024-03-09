@@ -39,7 +39,7 @@ def encode_image(img: Tensor, vae: AutoencoderKL) -> Tensor:
 
 
 @torch.no_grad()
-def decode_latents(out_latents: Tensor, vae: AutoencoderKL) -> Tensor:
+def decode_latents(out_latents: torch.FloatTensor, vae: AutoencoderKL) -> Tensor:
     # expected to be in the unscaled latent space
     out = vae.decode(out_latents.cuda())[0].cpu()
 
