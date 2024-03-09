@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 from tld.app import app
+import PIL
 from PIL import Image
 from io import BytesIO
 
@@ -21,9 +22,9 @@ def test_generate_image_unauthorized():
 
 def test_generate_image_authorized():
     response = client.post(
-        "/generate-image/", json={"prompt": "a cute cat"}, headers={"Authorization": "key_here"}
+        "/generate-image/", json={"prompt": "a cute cat"}, headers={"Authorization": "Bearer key_here"}
     )
     assert response.status_code == 200
 
     image = Image.open(BytesIO(response.content))
-    assert type(image) == Image.Image
+    assert type(image) == PIL.JpegImagePlugin.JpegImageFile
