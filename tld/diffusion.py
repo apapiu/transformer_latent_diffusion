@@ -1,19 +1,26 @@
 from dataclasses import dataclass
 
+import clip
 import numpy as np
+import requests
 import torch
+import torchvision.transforms as transforms
+import torchvision.utils as vutils
 from diffusers import AutoencoderKL
 from torch import Tensor
 from tqdm import tqdm
 
 from tld.denoiser import Denoiser
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+to_pil = transforms.ToPILImage()
+
 
 @dataclass
 class DiffusionGenerator:
     model: Denoiser
     vae: AutoencoderKL
-    device: str
+    device: torch.device
     model_dtype: torch.dtype = torch.float32
 
     @torch.no_grad()
@@ -113,3 +120,79 @@ class DiffusionGenerator:
         """Apply classifier-free guidance to the predictions."""
         x0_pred_label, x0_pred_no_label = x0_pred[:num_imgs], x0_pred[num_imgs:]
         return class_guidance * x0_pred_label + (1 - class_guidance) * x0_pred_no_label
+
+
+@dataclass
+class LTDConfig:
+    vae_scale_factor: float = 8
+    img_size: int = 32
+    model_dtype: torch.dtype = torch.float32
+    file_url: str = None  # = "https://huggingface.co/apapiu/small_ldt/resolve/main/state_dict_378000.pth"
+    local_filename: str = "state_dict_378000.pth"
+    vae_name: str = "madebyollin/sdxl-vae-fp16-fix"
+    clip_model_name: str = "ViT-L/14"
+    denoiser: Denoiser = Denoiser(
+        image_size=32,
+        noise_embed_dims=256,
+        patch_size=2,
+        embed_dim=256,
+        dropout=0,
+        n_layers=4,
+    )
+
+
+def download_file(url, filename):
+    with requests.get(url, stream=True) as r:
+        r.raise_for_status()
+        with open(filename, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+
+@torch.no_grad()
+def encode_text(label, model):
+    text_tokens = clip.tokenize(label, truncate=True).to(device)
+    text_encoding = model.encode_text(text_tokens)
+    return text_encoding.cpu()
+
+
+class DiffusionTransformer:
+    def __init__(self, config: LTDConfig):
+        denoiser = config.denoiser.to(config.model_dtype)
+
+        if config.file_url is not None:
+            print(f"Downloading model from {config.file_url}")
+            download_file(config.file_url, config.local_filename)
+            state_dict = torch.load(config.local_filename, map_location=torch.device("cpu"))
+            denoiser.load_state_dict(state_dict)
+
+        denoiser = denoiser.to(device)
+
+        vae = AutoencoderKL.from_pretrained(config.vae_name, torch_dtype=config.model_dtype).to(device)
+
+        self.clip_model, preprocess = clip.load(config.clip_model_name)
+        self.clip_model = self.clip_model.to(device)
+
+        self.diffuser = DiffusionGenerator(denoiser, vae, device, config.model_dtype)
+
+    def generate_image_from_text(
+        self, prompt: str, class_guidance=6, seed=11, num_imgs=1, img_size=32, n_iter=15
+    ):
+        nrow = int(np.sqrt(num_imgs))
+
+        cur_prompts = [prompt] * num_imgs
+        labels = encode_text(cur_prompts, self.clip_model)
+        out, out_latent = self.diffuser.generate(
+            labels=labels,
+            num_imgs=num_imgs,
+            class_guidance=class_guidance,
+            seed=seed,
+            n_iter=n_iter,
+            exponent=1,
+            scale_factor=8,
+            sharp_f=0,
+            bright_f=0,
+        )
+
+        out = to_pil((vutils.make_grid((out + 1) / 2, nrow=nrow, padding=4)).float().clip(0, 1))
+        return out

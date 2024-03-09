@@ -11,10 +11,10 @@ import torchvision.utils as vutils
 from diffusers import AutoencoderKL
 
 from tld.denoiser import Denoiser
-from tld.diffusion import DiffusionGenerator
+from tld.diffusion import DiffusionGenerator, DiffusionTransformer, LTDConfig
+from PIL.Image import Image
 
 to_pil = transforms.ToPILImage()
-
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -85,6 +85,15 @@ def test_diffusion_generator():
     out = to_pil((vutils.make_grid((out + 1) / 2, nrow=nrow, padding=4)).float().clip(0, 1))
     out.save("test.png")
     print("Images generated at test.png")
+
+
+def test_full_generation_pipeline():
+    ltdconfig = LTDConfig()
+    diffusion_transformer = DiffusionTransformer(ltdconfig)
+
+    out = diffusion_transformer.generate_image_from_text(prompt="a cute cat")
+    print(out)
+    assert type(out) == Image
 
 
 # TODO: should add tests for train loop and data processing
