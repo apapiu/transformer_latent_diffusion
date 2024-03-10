@@ -1,3 +1,5 @@
+import os
+
 from fastapi.testclient import TestClient
 from tld.app import app
 import PIL
@@ -21,8 +23,9 @@ def test_generate_image_unauthorized():
 
 
 def test_generate_image_authorized():
+    api_token = os.getenv("API_TOKEN")
     response = client.post(
-        "/generate-image/", json={"prompt": "a cute cat"}, headers={"Authorization": "Bearer key_here"}
+        "/generate-image/", json={"prompt": "a cute cat"}, headers={"Authorization": f"Bearer {api_token}"}
     )
     assert response.status_code == 200
 
