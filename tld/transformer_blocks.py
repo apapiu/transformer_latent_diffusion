@@ -125,7 +125,7 @@ class DecoderBlock(nn.Module):
         super().__init__()
         self.self_attention = SelfAttention(embed_dim, is_causal, dropout_level, n_heads=embed_dim // 64)
         self.cross_attention = CrossAttention(
-            embed_dim, is_causal=False, dropout_level=0, n_heads=embed_dim // 64
+            embed_dim, is_causal=False, dropout_level=0, n_heads=4
         )
         self.mlp = mlp_class(embed_dim, mlp_multiplier, dropout_level)
         self.norm1 = nn.LayerNorm(embed_dim)
