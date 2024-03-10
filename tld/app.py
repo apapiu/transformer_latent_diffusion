@@ -1,4 +1,5 @@
 import io
+import os
 from typing import Optional
 
 import torch
@@ -22,7 +23,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
 def validate_token(token: str = Depends(oauth2_scheme)):
-    if token != "key_here":
+    if token != os.getenv("API_TOKEN"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
