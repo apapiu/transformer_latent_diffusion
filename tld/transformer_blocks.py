@@ -32,7 +32,7 @@ class MHAttention(nn.Module):
         assert q.size(-1) == k.size(-1)
         assert k.size(-2) == v.size(-2)
 
-        q, k, v = [rearrange(x, "bs n (h d) -> bs h n d", h=self.n_heads) for x in [q, k, v]]
+        q, k, v = [rearrange(x, "bs n (d h) -> bs h n d", h=self.n_heads) for x in [q, k, v]]
 
         out = nn.functional.scaled_dot_product_attention(
             q,
@@ -43,7 +43,7 @@ class MHAttention(nn.Module):
             dropout_p=self.dropout_level if self.training else 0,
         )
 
-        out = rearrange(out, "bs h n d -> bs n (h d)", h=self.n_heads)
+        out = rearrange(out, "bs h n d -> bs n (d h)", h=self.n_heads)
 
         return out
 
