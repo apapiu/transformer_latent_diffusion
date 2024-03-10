@@ -132,8 +132,8 @@ class DecoderBlock(nn.Module):
         self.norm2 = nn.LayerNorm(embed_dim)
         self.norm3 = nn.LayerNorm(embed_dim)
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        x = self.self_attention(self.norm1(x)) + x
-        x = self.cross_attention(self.norm2(x), y) + x
-        x = self.mlp(self.norm3(x)) + x
+    def forward(self, x, y):
+        x = self.norm1(self.self_attention(x) + x)
+        x = self.norm2(self.cross_attention(x, y) + x)
+        x = self.norm3(self.mlp(x) + x)
         return x
