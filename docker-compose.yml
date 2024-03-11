@@ -1,0 +1,17 @@
+version: '3.8'
+services:
+  fastapi:
+    image: apapiu89/tld-app:latest
+    ports:
+      - "80:80"
+    environment:
+      - API_TOKEN=${API_TOKEN}
+
+  gradio:
+    image: apapiu89/gradio-app:latest
+    ports:
+      - "7860:7860"
+    environment:
+      - API_URL=http://fastapi:80
+    depends_on:
+      - fastapi
