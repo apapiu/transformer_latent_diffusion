@@ -1,4 +1,4 @@
-name: Build Test Push Docker image to Dockerhub
+name: Build Test Push Docker images to Dockerhub
 
 on:
   push:
@@ -18,15 +18,41 @@ jobs:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Build Docker image
-      run: docker build . -t ${{ secrets.DOCKER_USERNAME }}/tld-app:latest
+    # Steps to build, test, and push FastAPI image
+    - name: Build FastAPI Docker image
+      run: docker build . -f Dockerfile.fastapi -t ${{ secrets.DOCKER_USERNAME }}/tld-app:latest
 
-    - name: Test Docker image #this is running tests from within the container 
+    - name: Test FastAPI Docker image
       run: docker run --env API_TOKEN=${{ secrets.API_TOKEN }} ${{ secrets.DOCKER_USERNAME }}/tld-app:latest pytest -s
- 
-    - name: Push Docker image to Docker Hub
+
+    - name: Push FastAPI Docker image to Docker Hub
       run: docker push ${{ secrets.DOCKER_USERNAME }}/tld-app:latest
 
-    ##if all this works deploy to azure as well..
+    - name: Build Gradio Docker image
+      run: docker build . -f Dockerfile.gradio -t ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
 
-    
+    # Optional: Add a step to test Gradio Docker image
+    # - name: Test Gradio Docker image
+    #   run: docker run --env API_URL=http://your_api_url ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
+
+    - name: Push Gradio Docker image to Docker Hub
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+
+    - name: Set up Docker Compose Deployment
+      run: |
+        az webapp config container set --name transformer-diffusion \
+                                       --resource-group transformer-diffusion \
+                                       --multicontainer-config-type compose \
+                                       --multicontainer-config-file docker-compose.yml
+
+    - name: Set API_TOKEN in Azure App Service Settings
+      run: |
+        az webapp config appsettings set --name transformer-diffusion \
+                                     --resource-group transformer-diffusion \
+                                     --settings API_TOKEN=${{ secrets.API_TOKEN }}
