@@ -1,6 +1,5 @@
 import io
 import os
-from typing import Optional
 
 import torch
 import torchvision.transforms as transforms
@@ -9,13 +8,15 @@ from fastapi.responses import StreamingResponse
 from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 
-from tld.diffusion import DiffusionTransformer, LTDConfig
+from tld.diffusion import DiffusionTransformer
+from tld.configs import LTDConfig
+
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 to_pil = transforms.ToPILImage()
 
-ltdconfig = LTDConfig()
-diffusion_transformer = DiffusionTransformer(ltdconfig)
+cfg = LTDConfig()
+diffusion_transformer = DiffusionTransformer(cfg)
 
 app = FastAPI()
 
@@ -33,10 +34,10 @@ def validate_token(token: str = Depends(oauth2_scheme)):
 
 class ImageRequest(BaseModel):
     prompt: str
-    class_guidance: Optional[int] = 6
-    seed: Optional[int] = 11
-    num_imgs: Optional[int] = 1
-    img_size: Optional[int] = 32
+    class_guidance: int = 6
+    seed: int = 11
+    num_imgs: int = 1
+    img_size: int = 32
 
 
 @app.get("/")
