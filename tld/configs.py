@@ -1,7 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import torch
-
-# = "https://huggingface.co/apapiu/small_ldt/resolve/main/state_dict_378000.pth"
 
 @dataclass
 class DenoiserConfig:
@@ -12,12 +10,14 @@ class DenoiserConfig:
     dropout: float = 0
     n_layers: int = 3
     text_emb_size: int = 768
-    dtype: torch.dtype = torch.float32
-    file_url: str | None = None  #if not None will atempt to load state dict.
-    local_filename: str | None = None
-
     #n_channels: int = 4 #not propoagated
     #mlp_multiplier: int = 4 #not propagated
+
+@dataclass
+class DenoiserLoad:
+    dtype: torch.dtype = torch.float32
+    file_url: str | None = None
+    local_filename: str | None = None
 
 @dataclass
 class VaeConfig:
@@ -28,7 +28,17 @@ class VaeConfig:
 @dataclass
 class ClipConfig:
     clip_model_name: str = "ViT-L/14"
-    vae_dtype: torch.dtype = torch.float16
+    clip_dtype: torch.dtype = torch.float16
+
+
+@dataclass
+class LTDConfig:
+    denoiser_cfg: DenoiserConfig = field(default_factory=DenoiserConfig)
+    denoiser_load: DenoiserLoad = field(default_factory=DenoiserLoad)
+    vae_cfg: VaeConfig = field(default_factory=VaeConfig)
+    clip_cfg: ClipConfig = field(default_factory=ClipConfig)
+
+#---------------------
 
 @dataclass
 class DataConfig:
@@ -51,21 +61,12 @@ class TrainConfig:
 
 
 @dataclass
-class LTDConfig:
-    """used for diffusion generation"""
-    denoiser_config: DenoiserConfig = DenoiserConfig()
-    vae_cfg: VaeConfig = VaeConfig()
-    clip_cfg: ClipConfig = ClipConfig()
-
-
-
-@dataclass
 class ModelConfig:
     data_config: DataConfig 
-    denoiser_config: DenoiserConfig = DenoiserConfig()
-    train_config: TrainConfig = TrainConfig()
-    vae_cfg: VaeConfig = VaeConfig()
-    clip_cfg: ClipConfig = ClipConfig()
+    denoiser_config: DenoiserConfig
+    train_config: TrainConfig
+    vae_cfg: VaeConfig
+    clip_cfg: ClipConfig
 
 
 
@@ -73,5 +74,5 @@ class ModelConfig:
 
 
 if __name__=='__main__':
-    cfg = ModelConfig(**{"beta_b":1000})
+    cfg = LTDConfig()
     print(cfg)
