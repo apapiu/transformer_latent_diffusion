@@ -1,0 +1,49 @@
+[tool.poetry]
+name = "tld"
+version = "0.1.0"
+description = "Transformer Latent Diffusion"
+authors = ["Alexandru Papiu <alex.papiu@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/apapiu/transformer_latent_diffusion"
+repository = "https://github.com/apapiu/transformer_latent_diffusion"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.poetry.dependencies]
+python = ">=3.6,<4.0"
+torch = "*"
+numpy = "*"
+einops = "*"
+torchvision = "*"
+tqdm = "*"
+diffusers = "*"
+accelerate = "*"
+transformers = "*"
+Pillow = "*"
+clip = { git = "https://github.com/openai/CLIP.git" }
+uvicorn = "*"
+gunicorn = "*"
+fastapi = "*"
+pytest = "*"
+ruff = "*"
+pytest-asyncio = "*"
+httpx = "*"
+gradio = "*"
+
+[tool.poetry.dev-dependencies]
+uvicorn = "*"
+gunicorn = "*"
+fastapi = "*"
+pytest = "*"
+ruff = "*"
+pytest-asyncio = "*"
+httpx = "*"
+gradio = "*"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
