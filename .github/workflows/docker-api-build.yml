@@ -44,15 +44,15 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
 
-    - name: Set up Docker Compose Deployment
-      run: |
-        az webapp config container set --name transformer-diffusion \
-                                       --resource-group transformer-diffusion \
-                                       --multicontainer-config-type compose \
-                                       --multicontainer-config-file docker-compose.yml
+    # - name: Set up Docker Compose Deployment
+    #   run: |
+    #     az webapp config container set --name transformer-diffusion \
+    #                                    --resource-group transformer-diffusion \
+    #                                    --multicontainer-config-type compose \
+    #                                    --multicontainer-config-file docker-compose.yml
 
-    - name: Set API_TOKEN in Azure App Service Settings
-      run: |
-        az webapp config appsettings set --name transformer-diffusion \
-                                     --resource-group transformer-diffusion \
-                                     --settings API_TOKEN=${{ secrets.API_TOKEN }}
+    # - name: Set API_TOKEN in Azure App Service Settings
+    #   run: |
+    #     az webapp config appsettings set --name transformer-diffusion \
+    #                                  --resource-group transformer-diffusion \
+    #                                  --settings API_TOKEN=${{ secrets.API_TOKEN }}

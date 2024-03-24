@@ -92,12 +92,15 @@ class Denoiser(nn.Module):
         dropout: float,
         n_layers: int,
         text_emb_size: int = 768,
+        mlp_multiplier: int = 4,
+        n_channels: int = 4
     ):
         super().__init__()
 
         self.image_size = image_size
         self.noise_embed_dims = noise_embed_dims
         self.embed_dim = embed_dim
+        self.n_channels = n_channels
 
         self.fourier_feats = nn.Sequential(
             SinusoidalEmbedding(embedding_dims=noise_embed_dims),
@@ -106,7 +109,7 @@ class Denoiser(nn.Module):
             nn.Linear(self.embed_dim, self.embed_dim),
         )
 
-        self.denoiser_trans_block = DenoiserTransBlock(patch_size, image_size, embed_dim, dropout, n_layers)
+        self.denoiser_trans_block = DenoiserTransBlock(patch_size, image_size, embed_dim, dropout, n_layers, mlp_multiplier, n_channels)
         self.norm = nn.LayerNorm(self.embed_dim)
         self.label_proj = nn.Linear(text_emb_size, self.embed_dim)
 
