@@ -20,23 +20,23 @@ jobs:
 
     # Steps to build, test, and push FastAPI image
     - name: Build FastAPI Docker image
-      run: docker build . -f Dockerfile.fastapi -t ${{ secrets.DOCKER_USERNAME }}/tld-app:latest
+      run: docker build . -f Dockerfile.fastapi -t ${{ secrets.DOCKER_USERNAME }}/tld-app:${GITHUB_SHA::8}
 
     - name: Test FastAPI Docker image
-      run: docker run --env API_TOKEN=${{ secrets.API_TOKEN }} ${{ secrets.DOCKER_USERNAME }}/tld-app:latest pytest -s
+      run: docker run --env API_TOKEN=${{ secrets.API_TOKEN }} ${{ secrets.DOCKER_USERNAME }}/tld-app:${GITHUB_SHA::8} pytest -s
 
     - name: Push FastAPI Docker image to Docker Hub
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/tld-app:latest
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/tld-app:${GITHUB_SHA::8}
 
     - name: Build Gradio Docker image
-      run: docker build . -f Dockerfile.gradio -t ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
+      run: docker build . -f Dockerfile.gradio -t ${{ secrets.DOCKER_USERNAME }}/gradio-app:${GITHUB_SHA::8}
 
     # Optional: Add a step to test Gradio Docker image
     # - name: Test Gradio Docker image
-    #   run: docker run --env API_URL=http://your_api_url ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
+    #   run: docker run --env API_URL=http://your_api_url ${{ secrets.DOCKER_USERNAME }}/gradio-app:${GITHUB_SHA::8}
 
     - name: Push Gradio Docker image to Docker Hub
-      run: docker push ${{ secrets.DOCKER_USERNAME }}/gradio-app:latest
+      run: docker push ${{ secrets.DOCKER_USERNAME }}/gradio-app:${GITHUB_SHA::8}
 
     - name: Login to Azure
       uses: azure/login@v1
