@@ -10,8 +10,8 @@ class DenoiserConfig:
     dropout: float = 0
     n_layers: int = 3
     text_emb_size: int = 768
-    #n_channels: int = 4 #not propoagated
-    #mlp_multiplier: int = 4 #not propagated
+    n_channels: int = 4 #not propoagated
+    mlp_multiplier: int = 4 #not propagated
 
 @dataclass
 class DenoiserLoad:
@@ -33,12 +33,11 @@ class ClipConfig:
 
 @dataclass
 class LTDConfig:
+    """main config for inference"""
     denoiser_cfg: DenoiserConfig = field(default_factory=DenoiserConfig)
     denoiser_load: DenoiserLoad = field(default_factory=DenoiserLoad)
     vae_cfg: VaeConfig = field(default_factory=VaeConfig)
     clip_cfg: ClipConfig = field(default_factory=ClipConfig)
-
-#---------------------
 
 @dataclass
 class DataConfig:
@@ -58,18 +57,19 @@ class TrainConfig:
     save_and_eval_every_iters: int = 1000
     run_id: str = ""
     model_name: str = ""
+    compile: bool = True
+    save_model: bool = True
+    use_wandb: bool = True
 
 
 @dataclass
 class ModelConfig:
+    """main config for training and inference"""
     data_config: DataConfig 
-    denoiser_config: DenoiserConfig
-    train_config: TrainConfig
-    vae_cfg: VaeConfig
-    clip_cfg: ClipConfig
-
-
-
+    denoiser_config: DenoiserConfig = field(default_factory=DenoiserConfig)
+    train_config: TrainConfig = field(default_factory=TrainConfig)
+    vae_cfg: VaeConfig = field(default_factory=VaeConfig)
+    clip_cfg: ClipConfig = field(default_factory=ClipConfig)
 
 
 

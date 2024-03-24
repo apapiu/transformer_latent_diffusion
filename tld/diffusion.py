@@ -109,7 +109,7 @@ class DiffusionGenerator:
             generator.manual_seed(seed)
             return torch.randn(
                 num_imgs,
-                4,
+                self.model.n_channels,
                 img_size,
                 img_size,
                 dtype=self.model_dtype,
@@ -123,26 +123,6 @@ class DiffusionGenerator:
         """Apply classifier-free guidance to the predictions."""
         x0_pred_label, x0_pred_no_label = x0_pred[:num_imgs], x0_pred[num_imgs:]
         return class_guidance * x0_pred_label + (1 - class_guidance) * x0_pred_no_label
-
-
-# @dataclass
-# class LTDConfig:
-#     vae_scale_factor: float = 8
-#     img_size: int = 32
-#     model_dtype: torch.dtype = torch.float32
-#     file_url: str = None  # = "https://huggingface.co/apapiu/small_ldt/resolve/main/state_dict_378000.pth"
-#     local_filename: str = "state_dict_378000.pth"
-#     vae_name: str = "madebyollin/sdxl-vae-fp16-fix"
-#     clip_model_name: str = "ViT-L/14"
-#     denoiser: Denoiser = Denoiser(
-#         image_size=32,
-#         noise_embed_dims=256,
-#         patch_size=2,
-#         embed_dim=256,
-#         dropout=0,
-#         n_layers=4,
-#     )
-    
 
 
 def download_file(url, filename):

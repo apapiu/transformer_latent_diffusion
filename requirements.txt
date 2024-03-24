@@ -7,4 +7,5 @@ diffusers
 accelerate
 transformers
 Pillow
+wandb
 git+https://github.com/openai/CLIP.git
