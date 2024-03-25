@@ -5,7 +5,7 @@
 
 import json
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import List, Union
 
 import clip
@@ -21,9 +21,10 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 @torch.no_grad()
-def encode_text(label: Union[str, List[str]], model: nn.Module, device: str) -> Tensor:
+def encode_text(label: Union[str, List[str]], model: nn.Module, device: str | torch.device) -> Tensor:
     text_tokens = clip.tokenize(label, truncate=True).to(device)
     text_encoding = model.encode_text(text_tokens)
     return text_encoding.cpu()
@@ -31,7 +32,7 @@ def encode_text(label: Union[str, List[str]], model: nn.Module, device: str) -> 
 
 @torch.no_grad()
 def encode_image(img: Tensor, vae: AutoencoderKL) -> Tensor:
-    x = img.to("cuda").to(torch.float16)
+    x = img.to(device).to(torch.float16)
 
     x = x * 2 - 1  # to make it between -1 and 1.
     encoded = vae.encode(x, return_dict=False)[0].sample()
@@ -41,7 +42,7 @@ def encode_image(img: Tensor, vae: AutoencoderKL) -> Tensor:
 @torch.no_grad()
 def decode_latents(out_latents: torch.FloatTensor, vae: AutoencoderKL) -> Tensor:
     # expected to be in the unscaled latent space
-    out = vae.decode(out_latents.cuda())[0].cpu()
+    out = vae.decode(out_latents.to(device))[0].cpu()
 
     return ((out + 1) / 2).clip(0, 1)
 
@@ -93,7 +94,7 @@ def get_text_and_latent_embeddings_hdf5(
             text_ds = text_file["text_encodings"]
 
         for img, (label, url) in tqdm(dataloader):
-            text_encoding = encode_text(label, model).cpu().numpy().astype(np.float16)
+            text_encoding = encode_text(label, model, device).cpu().numpy().astype(np.float16)
             img_encoding = encode_image(img, vae).cpu().numpy().astype(np.float16)
 
             append_to_dataset(img_ds, img_encoding)
@@ -163,8 +164,8 @@ def download_and_process_data(
     model, _ = clip.load("ViT-L/14")
 
     vae = AutoencoderKL.from_pretrained("madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16)
-    vae = vae.to("cuda")
-    model.to("cuda")
+    vae = vae.to(device)
+    model.to(device)
 
     print("Starting to encode latents and text:")
     get_text_and_latent_embeddings_hdf5(dataloader, vae, model, latent_save_path)
@@ -184,29 +185,12 @@ class DataConfiguration:
     image_size: int = 256
     batch_size: int = 64
     download_data: bool = True
+    first_n_rows: int = 1000000
 
 
-if __name__ == "__main__":
-    use_wandb = False
-
+def main(data_config: DataConfiguration):
     if use_wandb:
-        import wandb
-
-        os.environ["WANDB_API_KEY"] = "key"
-        #!wandb login
-
-    data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
-
-    data_config = DataConfiguration(
-        data_link=data_link,
-        latent_save_path="latent_folder",
-        raw_imgs_save_path="raw_imgs_folder",
-        download_data=False,
-        number_sample_per_shard=1000,
-    )
-
-    if use_wandb:
-        wandb.init(project="image_vae_processing", entity="apapiu", config=data_config)
+        wandb.init(project="image_vae_processing", entity="apapiu", config=asdict(data_config))
 
     if not os.path.exists(data_config.latent_save_path):
         os.mkdir(data_config.latent_save_path)
@@ -217,9 +201,9 @@ if __name__ == "__main__":
 
     print("Config saved to:", config_file_path)
 
-    df = pd.read_parquet(data_link)
-    ###add additional data cleaning here...should I
-    df = df.iloc[:3000]
+    df = pd.read_parquet(data_config.data_link)
+    ##add additional data cleaning here...should I
+    df = df.iloc[:data_config.first_n_rows]
     df[["key", "url", "caption"]].to_csv("imgs.csv", index=None)
 
     if data_config.use_drive:
@@ -241,3 +225,27 @@ if __name__ == "__main__":
 
     if use_wandb:
         wandb.finish()
+
+
+if __name__ == "__main__":
+    use_wandb = False
+
+    if use_wandb:
+        import wandb
+
+        os.environ["WANDB_API_KEY"] = "key"
+        #!wandb login
+
+    data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
+
+    data_config = DataConfiguration(
+        data_link=data_link,
+        latent_save_path="latent_folder",
+        raw_imgs_save_path="raw_imgs_folder",
+        download_data=False,
+        number_sample_per_shard=2,
+        batch_size=1,
+        first_n_rows=6
+    )
+
+    main(data_config)
