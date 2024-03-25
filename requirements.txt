@@ -9,3 +9,8 @@ transformers
 Pillow
 wandb
 git+https://github.com/openai/CLIP.git
+
+#for data processing:
+h5py
+webdataset
+img2dataset
