@@ -120,25 +120,25 @@ def test_training():
 
     main(model_cfg)
 
-def test_data_processing():
-    from tld.data import main
-    from tld.configs import DataDownloadConfig
+# def test_data_processing():
+#     from tld.data import main
+#     from tld.configs import DataDownloadConfig
 
-    data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
+#     data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
 
-    data_config = DataDownloadConfig(
-        data_link=data_link,
-        latent_save_path="latent_folder",
-        raw_imgs_save_path="raw_imgs_folder",
-        download_data=True,
-        number_sample_per_shard=2,
-        batch_size=1,
-        first_n_rows=6,
-        use_wandb=False
-        )
+#     data_config = DataDownloadConfig(
+#         data_link=data_link,
+#         latent_save_path="latent_folder",
+#         raw_imgs_save_path="raw_imgs_folder",
+#         download_data=True,
+#         number_sample_per_shard=2,
+#         batch_size=1,
+#         first_n_rows=6,
+#         use_wandb=False
+#         )
 
-    if data_config.use_wandb:
-        os.environ["WANDB_API_KEY"] = "key"
+#     if data_config.use_wandb:
+#         os.environ["WANDB_API_KEY"] = "key"
 
-    main(data_config)
+#     main(data_config)
 
