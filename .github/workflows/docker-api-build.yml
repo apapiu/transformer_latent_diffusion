@@ -38,10 +38,10 @@ jobs:
     - name: Push Gradio Docker image to Docker Hub
       run: docker push ${{ secrets.DOCKER_USERNAME }}/gradio-app:${GITHUB_SHA::8}
 
-    - name: Login to Azure
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    # - name: Login to Azure
+    #   uses: azure/login@v1
+    #   with:
+    #     creds: ${{ secrets.AZURE_CREDENTIALS }}
 
 
     # - name: Set up Docker Compose Deployment

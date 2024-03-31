@@ -40,7 +40,7 @@ def encode_image(img: Tensor, vae: AutoencoderKL) -> Tensor:
 
 
 @torch.no_grad()
-def decode_latents(out_latents: torch.FloatTensor, vae: AutoencoderKL) -> Tensor:
+def decode_latents(out_latents: torch.Tensor, vae: AutoencoderKL) -> Tensor:
     # expected to be in the unscaled latent space
     out = vae.decode(out_latents.to(device))[0].cpu()
 
@@ -58,7 +58,7 @@ def dequantize_latents(lat: Tensor, clip_val: float = 20) -> Tensor:
     return lat_norm * clip_val
 
 
-def append_to_dataset(dataset: h5py.File, new_data: Tensor) -> None:
+def append_to_dataset(dataset: h5py.Dataset, new_data: Tensor) -> None:
     """Appends new data to an HDF5 dataset."""
     new_size = dataset.shape[0] + new_data.shape[0]
     dataset.resize(new_size, axis=0)
@@ -186,10 +186,12 @@ class DataConfiguration:
     batch_size: int = 64
     download_data: bool = True
     first_n_rows: int = 1000000
+    use_wandb: bool = False
 
 
 def main(data_config: DataConfiguration):
-    if use_wandb:
+    if data_config.use_wandb:
+        import wandb
         wandb.init(project="image_vae_processing", entity="apapiu", config=asdict(data_config))
 
     if not os.path.exists(data_config.latent_save_path):
@@ -223,29 +225,5 @@ def main(data_config: DataConfiguration):
         number_sample_per_shard=data_config.number_sample_per_shard,
     )
 
-    if use_wandb:
+    if data_config.use_wandb:
         wandb.finish()
-
-
-if __name__ == "__main__":
-    use_wandb = False
-
-    if use_wandb:
-        import wandb
-
-        os.environ["WANDB_API_KEY"] = "key"
-        #!wandb login
-
-    data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
-
-    data_config = DataConfiguration(
-        data_link=data_link,
-        latent_save_path="latent_folder",
-        raw_imgs_save_path="raw_imgs_folder",
-        download_data=False,
-        number_sample_per_shard=2,
-        batch_size=1,
-        first_n_rows=6
-    )
-
-    main(data_config)
