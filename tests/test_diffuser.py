@@ -9,7 +9,7 @@ import numpy as np
 import torch
 import torchvision.transforms as transforms
 import torchvision.utils as vutils
-from diffusers import AutoencoderKL
+from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 
 from tld.denoiser import Denoiser
 from tld.diffusion import DiffusionGenerator, DiffusionTransformer
@@ -121,11 +121,12 @@ def test_training():
     main(model_cfg)
 
 def test_data_processing():
-    from tld.data import main, DataConfiguration
+    from tld.data import main
+    from tld.configs import DataDownloadConfig
 
     data_link = "https://huggingface.co/datasets/zzliang/GRIT/resolve/main/grit-20m/coyo_0_snappy.parquet?download=true"
 
-    data_config = DataConfiguration(
+    data_config = DataDownloadConfig(
         data_link=data_link,
         latent_save_path="latent_folder",
         raw_imgs_save_path="raw_imgs_folder",
@@ -134,10 +135,9 @@ def test_data_processing():
         batch_size=1,
         first_n_rows=6,
         use_wandb=False
-    )
+        )
 
     if data_config.use_wandb:
-        import wandb
         os.environ["WANDB_API_KEY"] = "key"
 
     main(data_config)
