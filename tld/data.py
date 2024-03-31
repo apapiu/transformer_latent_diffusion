@@ -5,7 +5,7 @@
 
 import json
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict
 from typing import List, Union
 
 import clip
@@ -15,11 +15,13 @@ import pandas as pd
 import torch
 import torchvision.transforms as transforms
 import webdataset as wds
-from diffusers import AutoencoderKL
+from diffusers.models.autoencoders.autoencoder_kl import AutoencoderKL
 from img2dataset import download
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from tqdm import tqdm
+
+from tld.configs import DataDownloadConfig
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -172,24 +174,7 @@ def download_and_process_data(
     print("Finished encode latents and text:")
 
 
-@dataclass
-class DataConfiguration:
-    data_link: str
-    caption_col: str = "caption"
-    url_col: str = "url"
-    latent_save_path: str = "latents_folder"
-    raw_imgs_save_path: str = "raw_imgs_folder"
-    use_drive: bool = False
-    initial_csv_path: str = "imgs.csv"
-    number_sample_per_shard: int = 10000
-    image_size: int = 256
-    batch_size: int = 64
-    download_data: bool = True
-    first_n_rows: int = 1000000
-    use_wandb: bool = False
-
-
-def main(data_config: DataConfiguration):
+def main(data_config: DataDownloadConfig):
     if data_config.use_wandb:
         import wandb
         wandb.init(project="image_vae_processing", entity="apapiu", config=asdict(data_config))
