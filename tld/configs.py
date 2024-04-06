@@ -61,8 +61,9 @@ class TrainConfig:
     n_epoch: int = 100
     alpha: float = 0.999
     from_scratch: bool = True
-    beta_a: float = 0.75
-    beta_b: float = 0.75
+    ##betas determine the distribution of noise seen during training
+    beta_a: float = 1  
+    beta_b: float = 2.5
     save_and_eval_every_iters: int = 1000
     run_id: str = ""
     model_name: str = ""
