@@ -1,5 +1,5 @@
 # Transformer Latent Diffusion
-Text to Image Latent Diffusion using a Transformer core in PyTorch.
+Self Contained Text to Image Latent Diffusion using a Transformer core in PyTorch.
 
 **Try with own inputs**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1VaCe01YG9rnPwAfwVLBKdXEX7D_tk1U5?usp=sharing)
 
@@ -22,22 +22,20 @@ Note that the model has not converged yet and could use more training.
 #### High(er) Resolution: 
 By upsampling the positional encoding the model can also generate 512 or 1024 px images with minimal fine-tuning. See below for some examples of model fine-tuned on 100k extra 512 px images and 30k 1024 px images for about 2 hours on an A100. The images do sometimes lack global coherence at 1024 px - more to come here:
 
-<img width="600" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/adba64f0-b43c-423e-9a7d-033a4afea207">
-<img width="600" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/5a94515b-313e-420d-89d4-6bdc376d9a00">
+<img width="450" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/adba64f0-b43c-423e-9a7d-033a4afea207">
+<img width="450" alt="image" src="https://github.com/apapiu/transformer_latent_diffusion/assets/13619417/5a94515b-313e-420d-89d4-6bdc376d9a00">
 
 
 
 ### Intro: 
 
-The main goal of this project is to build an accessible diffusion model in PyTorch that is: 
+The main goal of this repo is to build an accessible diffusion model in PyTorch that is: 
 - fast (close to real time generation)
 - small (~100MM params)
 - reasonably good (of course not SOTA)
 - can be trained in a reasonable amount of time on a single GPU (under 50 hours on an A100 or equivalent).
 - simple self-contained codebase (model + train loop is about ~400 lines of PyTorch with little dependencies)
-- uses ~ 1 million images with a focus on data quality over quantity
-
-This is part II of a previous [project](https://github.com/apapiu/guided-diffusion-keras) I did where I trained a pixel level diffusion model in Keras. Even though this model outputs 4x higher resolution images (256px vs 64px), it's actually faster to both train and sample from, which shows the power of training in the latent space and speed of transformer architectures.
+- uses ~ 1 million images with a focus on data quality over quantity with code provided for downloading and processing the data
 
 ## Table of Contents:
 - [Codebase](#codebase)
@@ -57,43 +55,71 @@ The code is written in pure PyTorch with as few dependencies as possible.
 - [diffusion.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/diffusion.py). Class to generate image from noise using reverse diffusion. Short (~60 lines) and self-contained.
 - [data.py](https://github.com/apapiu/transformer_latent_diffusion/blob/main/tld/data.py). Data utils to download images/text and process necessary features for the diffusion model.
 
-### Usage:
+## Usage:
 If you have your own dataset of URLs + captions, the process to train a model on the data consists of two steps:
 
 1. Use `train.download_and_process_data` to obtain the latent and text encodings as numpy files. See [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1BPDFDBdsP9SSKBNEFJysmlBjfoxKK13r?usp=sharing) for a notebook example downloading and processing 2000 images from this HuggingFace [dataset](https://huggingface.co/datasets/zzliang/GRIT).
 
 2. use the `train.main` function in an accelerate `notebook_launcher` - see [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1sKk0usxEF4bmdCDcNQJQNMt4l9qBOeAM?usp=sharing) for a colab notebook that trains a model on 100k images from scratch. Note that this downloads already pre-preprocessed latents and embeddings from [here](https://huggingface.co/apapiu/small_ldt/tree/main) but you could just use whatever `.npy` files you had saved from step 1.
 
-#### Fine-Tuning - TODO but it is the same as step 2 above except you train on a pre-trained model.
 
-```python
-!wandb login
-import os
-from tld.train import main, DataConfig, ModelConfig
-from accelerate import notebook_launcher
+### Install and Dependencies:
+To install the package and dependencies run:
 
-data_config = DataConfig(latent_path='path/to/image_latents.npy',
-                         text_emb_path='path/to/text_encodings.npy',
-                         val_path='path/to/val_encodings.npy')
+`pip install git+https://github.com/apapiu/transformer_latent_diffusion.git`
 
-model_config = ModelConfig(embed_dim=512, n_layers=6) #see ModelConfig for more params
 
-#run the training process on 2 GPUs:
-notebook_launcher(main, (model_config, data_config), num_processes=2)
-```
-
-### Dependencies:
 - `PyTorch` `numpy` `einops` for model building
 - `wandb` `tqdm` for logging + progress bars
 - `accelerate` for train loop and multi-GPU support
 - `img2dataset` `webdataset` `torchvision` for data downloading and image processing
 - `diffusers` `clip` for pretrained VAE and CLIP text model
 
-### Codebases used for inspiration:
-- [PixArt-alpha](https://github.com/PixArt-alpha/PixArt-alpha)
-- [k-diffusion](https://github.com/crowsonkb/k-diffusion)
-- [nanoGPT](https://github.com/karpathy/nanoGPT/tree/master)
-- [LocalViT](https://github.com/ofsoundof/LocalViT)
+#### Basic Inference code:
+```python
+
+from tld.configs import LTDConfig, DenoiserConfig, TrainConfig
+from tld.diffusion import DiffusionTransformer
+
+denoiser_cfg = DenoiserConfig(n_channels=4) #configure your model here.
+cfg = LTDConfig(denoiser_cfg=denoiser_cfg)
+
+diffusion_transformer = DiffusionTransformer(cfg)
+
+out = diffusion_transformer.generate_image_from_text(prompt="a cute cat")
+```
+
+#### Basic Training code:
+```python
+from tld.train import main
+from tld.configs import ModelConfig, DataConfig
+
+data_config = DataConfig(
+    latent_path="latents.npy", text_emb_path="text_emb.npy", val_path="val_emb.npy"
+)
+
+model_cfg = ModelConfig(
+    data_config=data_config,
+    train_config=TrainConfig(n_epoch=100, save_model=False, compile=False, use_wandb=False),
+)
+
+main(model_cfg)
+
+#OR in a notebook ot run the training process on 2 GPUs:
+#notebook_launcher(main, model_cfg, num_processes=2)
+```
+
+#### Tests:
+
+The tests in `test_diffuser.py` are a good place to start understanding the code. You can run all tests by running `pytest -s`. 
+
+#### Github Actions:
+
+I have some github action configured to run tests, check linting, and build some docker images - if you're just exploring the code you can comment these out or delete the `.github/workflows` folder.
+
+#### Configs:
+
+Configs are in `tld/configs.py` in the form of dataclasses. The default values can always be overwritten. For example: `DenoiserConfig(n_layers=16)` keeps all defaults except for n_layers. You can also save your configs as JSON and load them in like so: `DenoiserConfig(**json.load(file))`
 
 #### Speed:
 
@@ -101,16 +127,22 @@ I try to speed up training and inference as much as possible by:
 - using mixed precision for training + [sdpa]
 - precompute all latent and text embeddings
 - using float16 precision for inference
-- using [sdpa] for the attention natively + torch.compile() (compile doesn't always work).
+- using [sdpa] for the flash attention 2 + torch.compile() on pyttorch 2.0+
 - use a highly performant sampler (DPM-Solver++(2M)) that gets good results in ~ 15 steps.
-- TODO: would distillation or something like LCM work here?
-- TODO: use flash-attention2?
-- TODO: use smaller vae?
 
 The time to generate a batch of 36 images (15 iterations) on a: 
 - T4: ~ 3.5 seconds
 - A100: ~ 0.6 seconds
 In fact on an A100 the vae becomes the bottleneck even though it is only used once.
+
+
+
+### Codebases used for inspiration:
+- [PixArt-alpha](https://github.com/PixArt-alpha/PixArt-alpha)
+- [k-diffusion](https://github.com/crowsonkb/k-diffusion)
+- [nanoGPT](https://github.com/karpathy/nanoGPT/tree/master)
+- [LocalViT](https://github.com/ofsoundof/LocalViT)
+
 
 
 ## Examples:
@@ -177,17 +209,17 @@ The model is trained to minimize the mean squared error `|f(x_noisy) - x|` betwe
 (you can also use absolute error here). Note that I don't reparameterize the loss in terms of the noise here to keep things simple.
 
 Using this model, we then iteratively generate an image from random noise as follows:
-    
-         for i in range(len(self.noise_levels) - 1):
+```python
+for i in range(len(self.noise_levels) - 1):
 
-            curr_noise, next_noise = self.noise_levels[i], self.noise_levels[i + 1]
+  curr_noise, next_noise = self.noise_levels[i], self.noise_levels[i + 1]
 
-            # Predict original denoised image:
-            x0_pred = predict_x_zero(new_img, label, curr_noise)
+  # Predict original denoised image:
+  x0_pred = predict_x_zero(new_img, label, curr_noise)
 
-            # New image at next_noise level is a weighted average of old image and predicted x0:
-            new_img = ((curr_noise - next_noise) * x0_pred + next_noise * new_img) / curr_noise
-
+  # New image at next_noise level is a weighted average of old image and predicted x0:
+  new_img = ((curr_noise - next_noise) * x0_pred + next_noise * new_img) / curr_noise
+```
 The `predict_x_zero` method uses classifier free guidance by combining the conditional and unconditional
 prediction: `x0_pred = class_guidance * x0_pred_conditional + (1 - class_guidance) * x0_pred_unconditional`
 
@@ -197,12 +229,17 @@ $$z_t = \alpha_t x + \sigma_t \epsilon,  \epsilon \sim \mathcal{N}(0,1)$$
 
 Where $z_t$ is the noisy version of $x$ at time $t$.
 
-Generally, $\alpha_t$ is chosen to be $\sqrt{1-\sigma_t^2}$ so that the process is variance preserving. Here, I chose $\alpha_t=1-\sigma_t$ so that we linearly interpolate between the image and random noise. Why? For one, it simplifies the updating equation quite a bit, and it's easier to understand what the noise to signal ratio will look like. I also found that the model produces sharper images faster - more validation here is needed. The updating equation above is the DDIM model for this parametrization, which simplifies to a simple weighted average. Note that the DDIM model deterministically maps random normal noise to images - this has two benefits: we can interpolate in the random normal latent space, and it generally takes fewer steps to achieve decent image quality.
+Generally, $\alpha_t$ is chosen to be $\sqrt{1-\sigma_t^2}$ so that the process is variance preserving. Here, I chose $\alpha_t=1-\sigma_t$ so that we linearly interpolate between the image and random noise. Why? For one, it simplifies the updating equation quite a bit, and it's easier to understand what the noise to signal ratio will look like. I also found that the model produces sharper images faster. The updating equation above is the DDIM model for this parametrization, which simplifies to a simple weighted average. Note that the DDIM model deterministically maps random normal noise to images - this has two benefits: we can interpolate in the random normal latent space, and it generally takes fewer steps to achieve decent image quality.
 
 ## TODOS:
-- better config in the train file
-- how to speed up generation even more - LCMs or other sampling strategies?
-- add script to compute FID
+
+- [] how to speed up generation even more - LCMs?
+- [] add script to compute FID
+- [x] better config in the train file
+- [x] faster sampling - DDPM
+
+
+
 
 
 
