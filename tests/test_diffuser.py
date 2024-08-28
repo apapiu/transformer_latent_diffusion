@@ -90,7 +90,7 @@ def test_full_generation_pipeline():
 
     out = diffusion_transformer.generate_image_from_text(prompt="a cute cat")
     print(out)
-    assert type(out) == Image
+    assert isinstance(out, Image)
 
 
 def test_training():
