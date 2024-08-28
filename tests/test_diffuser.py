@@ -120,6 +120,43 @@ def test_training():
 
     main(model_cfg)
 
+
+def test_real_model():
+    from tld.diffusion import DiffusionGenerator, DiffusionTransformer
+    from tld.configs import LTDConfig, DenoiserConfig, TrainConfig, DenoiserLoad
+    import torch
+
+    denoiser_cfg = DenoiserConfig(image_size = 32,
+                noise_embed_dims = 256,
+                patch_size = 2,
+                embed_dim = 768,
+                dropout = 0,
+                n_layers = 12,
+                text_emb_size = 768)
+
+    denoiser_load = DenoiserLoad(**{'dtype': torch.float32,
+    'file_url': 'https://huggingface.co/apapiu/small_ldt/resolve/main/state_dict_378000.pth',
+    'local_filename': 'state_dict_378000.pth'})
+
+
+    cfg = LTDConfig(denoiser_cfg=denoiser_cfg, denoiser_load=denoiser_load)
+    diffusion_transformer = DiffusionTransformer(cfg)
+
+    prompt = "a cute puppy wearing a cape" #@param {type:"string"}
+    class_guidance = 6 #@param {type:"slider", min:0, max:15, step:0.5}
+    num_imgs = 9 #@param {type:"slider", min:1, max:36, step:1}
+    seed = 11 #@param{}
+
+
+    out = diffusion_transformer.generate_image_from_text(
+        prompt=prompt,
+        class_guidance=class_guidance,
+        num_imgs=num_imgs,
+        seed=seed
+        )
+
+    out.save("test.png")
+
 # def test_data_processing():
 #     from tld.data import main
 #     from tld.configs import DataDownloadConfig

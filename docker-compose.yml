@@ -1,17 +1,22 @@
 version: '3.8'
 services:
   fastapi:
-    image: apapiu89/tld-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
     ports:
       - "80:80"
     environment:
       - API_TOKEN=${API_TOKEN}
 
   gradio:
-    image: apapiu89/gradio-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.gradio
     ports:
       - "7860:7860"
     environment:
-      - API_URL=http://fastapi:80
+      - API_URL=http://fastapi:80/generate-image
+      - API_TOKEN=${API_TOKEN}
     depends_on:
       - fastapi
