@@ -30,4 +30,4 @@ def test_generate_image_authorized():
     assert response.status_code == 200
 
     image = Image.open(BytesIO(response.content))
-    assert type(image) == PIL.JpegImagePlugin.JpegImageFile
+    assert isinstance(image, PIL.JpegImagePlugin.JpegImageFile)

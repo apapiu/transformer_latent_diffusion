@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=45", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tld"
+version = "0.1.0"
+description = "Transformer Latent Diffusion"
+authors = [
+    {name = "Alexandru Papiu", email = "alex.papiu@gmail.com"},
+]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.6,<4.0"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch",
+    "numpy",
+    "einops",
+    "torchvision",
+    "tqdm",
+    "diffusers",
+    "accelerate",
+    "transformers",
+    "Pillow",
+    "uvicorn",
+    "gunicorn",
+    "fastapi",
+    "pytest",
+    "ruff",
+    "pytest-asyncio",
+    "httpx",
+    "gradio",
+    "clip@git+https://github.com/openai/CLIP.git",
+    "wandb"
+]
+
+[project.optional-dependencies]
+dev = [
+    "uvicorn",
+    "gunicorn",
+    "fastapi",
+    "pytest",
+    "ruff",
+    "pytest-asyncio",
+    "httpx",
+    "gradio",
+]
+
+[project.urls]
+Homepage = "https://github.com/apapiu/transformer_latent_diffusion"
+Repository = "https://github.com/apapiu/transformer_latent_diffusion"
+
+[tool.setuptools]
+packages = ["tld"]
