@@ -5,6 +5,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y git
 
 COPY tld /app/tld
+COPY tests /app/tests
 COPY pyproject.toml /app/pyproject.toml
 
 RUN pip install --no-cache-dir .
